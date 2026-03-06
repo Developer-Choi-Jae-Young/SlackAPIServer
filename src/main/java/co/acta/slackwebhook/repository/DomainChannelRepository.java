@@ -7,4 +7,6 @@ import java.util.List;
 
 public interface DomainChannelRepository extends JpaRepository<DomainChannelEntity, Long> {
     List<DomainChannelEntity> findByDomain(String domain);
+
+    List<DomainChannelEntity> findByDomainAndChannel(String domain, String channel);
 }

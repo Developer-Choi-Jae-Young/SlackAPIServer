@@ -1,81 +1,51 @@
 package co.acta.slackwebhook.service;
 
-import co.acta.slackwebhook.Utils.MetaData;
+import co.acta.slackwebhook.Utils.CallRestAPI;
+import co.acta.slackwebhook.Utils.SlackMessageFrame;
 import co.acta.slackwebhook.dto.request.AddBoardDto;
-import co.acta.slackwebhook.dto.request.AddWebHookDTO;
-import co.acta.slackwebhook.dto.response.ResUserInfoDto;
 import co.acta.slackwebhook.entity.BoardEntity;
 import co.acta.slackwebhook.entity.DomainChannelEntity;
-import co.acta.slackwebhook.entity.MemberEntity;
 import co.acta.slackwebhook.repository.BoardRepository;
 import co.acta.slackwebhook.repository.DomainChannelRepository;
-import co.acta.slackwebhook.repository.MemberRepository;
-import com.fasterxml.jackson.core.JsonProcessingException;
+import co.acta.slackwebhook.service.interfaces.SlackSendAPI;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.multipart.MultipartFile;
 
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class WebHookService {
-    private final RestTemplate restTemplate;
-    private final MemberRepository memberRepository;
     private final DomainChannelRepository domainChannelRepository;
     private final BoardRepository boardRepository;
+    private final List<SlackSendAPI> slackSendAPIList;
+    private final CallRestAPI callRestAPI;
 
-    private final String slackToken = "";
-
-    public void addToken(AddWebHookDTO dto) {
-
-    }
-
-    public void addMember(AddWebHookDTO dto) {
-        HttpHeaders httpHeaders = new HttpHeaders();
-        httpHeaders.setContentType(new MediaType(MediaType.APPLICATION_JSON, StandardCharsets.UTF_8));
-        httpHeaders.set(HttpHeaders.AUTHORIZATION, "Bearer " + slackToken);
-        String url = "https://slack.com/api/users.info?user=" + dto.getUser_id();
-
-        ResponseEntity<ResUserInfoDto> returnData =
-                restTemplate.exchange(url, HttpMethod.GET, new HttpEntity<>(httpHeaders), ResUserInfoDto.class);
-
-        ResUserInfoDto bodyData = returnData.getBody();
-        boolean isOk = bodyData.isOk();
-
-        if(isOk) {
-            MemberEntity memberEntity = MemberEntity.builder()
-                    .name(bodyData.getUser().getName())
-                    .userToken(bodyData.getUser().getId())
-                    .email(bodyData.getUser().getProfile().getEmail())
-                    .phone(bodyData.getUser().getProfile().getPhone())
-                    .build();
-            memberRepository.findByUserTokenAndDelYn(dto.getUser_id(), false).orElseGet(() -> memberRepository.save(memberEntity));
-        }
-    }
-    public void sendAPI(String message, String domain) {
-        String url = "https://slack.com/api/chat.postMessage";
-
+    public void sendAPI(AddBoardDto boardDto, String domain, List<MultipartFile> files) {
         List<DomainChannelEntity> domainChannelList = domainChannelRepository.findByDomain(domain);
         domainChannelList.forEach((data) -> {
-            Map<String, String> payload = new HashMap<>();
-            payload.put("channel", data.getChannel());
-            payload.put("text", message);
+            callRestAPI.sendMessage(boardDto, data.getChannel(), () -> {
+                List<Map<String, Object>> blocks = new ArrayList<>();
 
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.setBearerAuth(slackToken);
+                for (SlackMessageFrame frmae : SlackMessageFrame.values()) {
+                    findBean(frmae.getServiceClass()).ifPresent(service -> {
+                        Map<String, Object> result = (Map<String, Object>) service.makeMessageFrame(boardDto, files, data.getChannel());
+                        if (result != null && !result.isEmpty()) blocks.add(result);
+                    });
+                }
 
-            HttpEntity<Map<String, String>> request = new HttpEntity<>(payload, headers);
-            ResponseEntity<String> res = restTemplate.postForEntity(url, request, String.class);
+                return blocks;
+            });
         });
+    }
+
+    private Optional<SlackSendAPI> findBean(Class<? extends SlackSendAPI> clazz) {
+        return slackSendAPIList.stream().filter(clazz::isInstance).findFirst();
     }
 
     @Transactional
@@ -84,7 +54,9 @@ public class WebHookService {
                 .domain(domain)
                 .channel(channel)
                 .build();
-
+        
+        if(domainChannelRepository.findByDomainAndChannel(domain, channel).size() > 1) throw new RuntimeException("이미 등록된 채널");
+        
         domainChannelRepository.save(domainChannel);
     }
 

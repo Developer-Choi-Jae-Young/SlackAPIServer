@@ -10,7 +10,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@Order(5)
 @Component
 public class SlackMessageContent implements SlackSendAPI {
     @Override

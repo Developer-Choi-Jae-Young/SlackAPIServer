@@ -10,6 +10,7 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -27,7 +28,7 @@ public class CallRestAPI {
 
         try {
             String getUrl = "https://slack.com/api/files.getUploadURLExternal"
-                    + "?filename=" + URLEncoder.encode(mfile.getOriginalFilename(), "UTF-8")
+                    + "?filename=" + URLEncoder.encode(mfile.getOriginalFilename(), StandardCharsets.UTF_8.name())
                     + "&length=" + mfile.getSize();
 
             ResponseEntity<Map> urlRes = restTemplate.exchange(getUrl, HttpMethod.GET, new HttpEntity<>(HttpHeader.headers), Map.class);
@@ -69,7 +70,8 @@ public class CallRestAPI {
         return filesInfo;
     }
 
-    public void sendMessage(AddBoardDto boardDto, String channelId, String parentTs, SlackSendCallBack slackSendCallBack) {
+    public String sendMessage(AddBoardDto boardDto, String channelId, String parentTs, SlackSendCallBack slackSendCallBack) {
+        String messageTs = "";
         String url = "https://slack.com/api/chat.postMessage";
 
         List<Map<String, Object>> blocks = slackSendCallBack.callback();
@@ -80,10 +82,11 @@ public class CallRestAPI {
 
         Map<String, Object> responseBody = res.getBody();
         if (responseBody != null && Boolean.TRUE.equals(responseBody.get("ok"))) {
-            String messageTs = (String) responseBody.get("ts");
-            boardDto.setTs(messageTs);
+            messageTs = (String) responseBody.get("ts");
         } else {
             log.error("슬랙 메시지 전송 실패: {}", responseBody);
         }
+
+        return  messageTs;
     }
 }

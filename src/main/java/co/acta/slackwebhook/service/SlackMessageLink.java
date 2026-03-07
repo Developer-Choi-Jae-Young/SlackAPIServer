@@ -8,7 +8,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.*;
 
-@Order(7)
 @Component
 public class SlackMessageLink implements SlackSendAPI {
     @Override

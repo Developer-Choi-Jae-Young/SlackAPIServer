@@ -26,12 +26,13 @@ public class WebHookService {
     private final List<SlackSendAPI> slackSendAPIList;
     private final CallRestAPI callRestAPI;
 
+    @Transactional
     public void sendAPI(AddBoardDto boardDto, String domain, List<MultipartFile> files) {
         String parentTs = boardRepository.findById((long) boardDto.getParentBoardId()).map(BoardEntity::getTs).orElse(null);
 
         List<DomainChannelEntity> domainChannelList = domainChannelRepository.findByDomain(domain);
         domainChannelList.forEach((data) -> {
-            callRestAPI.sendMessage(boardDto, data.getChannel(), parentTs, () -> {
+            String ts = callRestAPI.sendMessage(boardDto, data.getChannel(), parentTs, () -> {
                 List<Map<String, Object>> blocks = new ArrayList<>();
 
                 for (SlackMessageFrame frame : SlackMessageFrame.values()) {
@@ -43,9 +44,10 @@ public class WebHookService {
 
                 return blocks;
             });
-        });
 
-        addBoard(boardDto);
+            boardDto.setTs(ts);
+            addBoard(boardDto);
+        });
     }
 
     private Optional<SlackSendAPI> findBean(Class<? extends SlackSendAPI> clazz) {
@@ -59,7 +61,7 @@ public class WebHookService {
                 .channel(channel)
                 .build();
         
-        if(domainChannelRepository.findByDomainAndChannel(domain, channel).size() > 1) throw new RuntimeException("이미 등록된 채널");
+        if(domainChannelRepository.findByDomainAndChannel(domain, channel).size() > 0) throw new RuntimeException("이미 등록된 채널");
         
         domainChannelRepository.save(domainChannel);
     }

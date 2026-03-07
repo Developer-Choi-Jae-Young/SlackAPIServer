@@ -13,7 +13,6 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.*;
 
 @Slf4j
-@Order(6)
 @Component
 @RequiredArgsConstructor
 public class SlackMessageFile implements SlackSendAPI {

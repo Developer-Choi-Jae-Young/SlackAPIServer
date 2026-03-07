@@ -27,13 +27,15 @@ public class WebHookService {
     private final CallRestAPI callRestAPI;
 
     public void sendAPI(AddBoardDto boardDto, String domain, List<MultipartFile> files) {
+        String parentTs = boardRepository.findById((long) boardDto.getParentBoardId()).map(BoardEntity::getTs).orElse(null);
+
         List<DomainChannelEntity> domainChannelList = domainChannelRepository.findByDomain(domain);
         domainChannelList.forEach((data) -> {
-            callRestAPI.sendMessage(boardDto, data.getChannel(), () -> {
+            callRestAPI.sendMessage(boardDto, data.getChannel(), parentTs, () -> {
                 List<Map<String, Object>> blocks = new ArrayList<>();
 
-                for (SlackMessageFrame frmae : SlackMessageFrame.values()) {
-                    findBean(frmae.getServiceClass()).ifPresent(service -> {
+                for (SlackMessageFrame frame : SlackMessageFrame.values()) {
+                    findBean(frame.getServiceClass()).ifPresent(service -> {
                         Map<String, Object> result = (Map<String, Object>) service.makeMessageFrame(boardDto, files, data.getChannel());
                         if (result != null && !result.isEmpty()) blocks.add(result);
                     });
@@ -42,6 +44,8 @@ public class WebHookService {
                 return blocks;
             });
         });
+
+        addBoard(boardDto);
     }
 
     private Optional<SlackSendAPI> findBean(Class<? extends SlackSendAPI> clazz) {
@@ -61,15 +65,17 @@ public class WebHookService {
     }
 
     @Transactional
-    public void addBoard(AddBoardDto addBoardDto) {
+    public BoardEntity addBoard(AddBoardDto addBoardDto) {
         BoardEntity board = BoardEntity.builder()
                 .title(addBoardDto.getTitle())
                 .content(addBoardDto.getContent())
                 .writer(addBoardDto.getWriter())
                 .regDate(addBoardDto.getRegDate())
                 .link(addBoardDto.getLink())
+                .parentId((long) addBoardDto.getParentBoardId())
+                .ts(addBoardDto.getTs())
                 .build();
 
-        boardRepository.save(board);
+        return boardRepository.save(board);
     }
 }

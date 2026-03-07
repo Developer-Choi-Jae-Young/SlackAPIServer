@@ -18,4 +18,5 @@ public class AddBoardDto {
     private String writer;
     private LocalDate regDate;
     private String link;
+    private String ts;
 }

@@ -9,10 +9,11 @@ import java.util.Map;
 
 @Component
 public class SlackMessageLayout {
-    public Map<String, Object> makeLayout(AddBoardDto boardDto, List<Map<String, Object>> blocks, String channelId) {
+    public Map<String, Object> makeLayout(AddBoardDto boardDto, List<Map<String, Object>> blocks, String channelId, String parentTs) {
         Map<String, Object> body = new HashMap<>();
 
         body.put("channel", channelId);
+        if(parentTs != null && !parentTs.isEmpty()) body.put("thread_ts", parentTs);
         body.put("blocks", blocks);
         body.put("text", "새 게시글이 등록되었습니다: " + boardDto.getTitle());
 

@@ -2,6 +2,7 @@ package co.acta.slackwebhook.entity;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import javax.persistence.Entity;
@@ -14,6 +15,7 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Getter
 public class BoardEntity {
     @Id @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
@@ -22,4 +24,6 @@ public class BoardEntity {
     private String writer;
     private LocalDate regDate;
     private String link;
+    private Long parentId;
+    private String ts;
 }

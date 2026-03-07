@@ -69,14 +69,21 @@ public class CallRestAPI {
         return filesInfo;
     }
 
-    public void sendMessage(AddBoardDto boardDto, String channelId, SlackSendCallBack slackSendCallBack) {
+    public void sendMessage(AddBoardDto boardDto, String channelId, String parentTs, SlackSendCallBack slackSendCallBack) {
         String url = "https://slack.com/api/chat.postMessage";
 
         List<Map<String, Object>> blocks = slackSendCallBack.callback();
-        Map<String, Object> body = slackMessageLayout.makeLayout(boardDto, blocks, channelId);
+        Map<String, Object> body = slackMessageLayout.makeLayout(boardDto, blocks, channelId, parentTs);
 
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, HttpHeader.headers);
         ResponseEntity<Map> res = restTemplate.postForEntity(url, request, Map.class);
-        log.info(res.getBody().toString());
+
+        Map<String, Object> responseBody = res.getBody();
+        if (responseBody != null && Boolean.TRUE.equals(responseBody.get("ok"))) {
+            String messageTs = (String) responseBody.get("ts");
+            boardDto.setTs(messageTs);
+        } else {
+            log.error("슬랙 메시지 전송 실패: {}", responseBody);
+        }
     }
 }

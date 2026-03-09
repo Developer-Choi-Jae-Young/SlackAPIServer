@@ -12,15 +12,12 @@ import javax.persistence.*;
 @NoArgsConstructor
 @Builder
 @Getter
-@Table(
-        name="DOMAIN_CHANNEL",
-        uniqueConstraints={
-                @UniqueConstraint(name= "unique-constraint-domain-channel", columnNames={"domain", "channel"})
-        }
-)
+@Table(name="DOMAIN_CHANNEL")
 public class DomainChannelEntity {
     @Id @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
-    private String domain;
+    @ManyToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @JoinColumn(name = "domainId")
+    private DomainEntity domain;
     private String channel;
 }

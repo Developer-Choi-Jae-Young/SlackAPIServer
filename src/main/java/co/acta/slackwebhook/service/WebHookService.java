@@ -1,5 +1,7 @@
 package co.acta.slackwebhook.service;
 
+import co.acta.slackwebhook.entity.DomainEntity;
+import co.acta.slackwebhook.repository.DomainRepository;
 import co.acta.slackwebhook.utils.CallRestAPI;
 import co.acta.slackwebhook.utils.SlackMessageFrame;
 import co.acta.slackwebhook.dto.request.AddBoardDto;
@@ -21,6 +23,7 @@ import java.util.*;
 @Slf4j
 public class WebHookService {
     private final DomainChannelRepository domainChannelRepository;
+    private final DomainRepository domainRepository;
     private final BoardRepository boardRepository;
     private final List<SlackSendAPI> slackSendAPIList;
     private final CallRestAPI callRestAPI;
@@ -28,9 +31,10 @@ public class WebHookService {
     @Transactional
     public void sendAPI(AddBoardDto boardDto, String domain, List<MultipartFile> files) {
         String parentTs = boardDto.getParentBoardId() != null ? boardRepository.findByBoardId((long) boardDto.getParentBoardId()).map(BoardEntity::getTs).orElse(null) : null;
-        List<DomainChannelEntity> domainChannelList = domainChannelRepository.findByDomain(domain);
+        List<DomainChannelEntity> domainChannelList = domainChannelRepository.findByDomain_Domain(domain);
 
         domainChannelList.forEach((data) -> {
+            boardDto.setLink(data.getDomain().getViewUrl());
             String ts = callRestAPI.sendMessage(boardDto, data.getChannel(), parentTs, () -> {
                 List<Map<String, Object>> blocks = new ArrayList<>();
 
@@ -54,13 +58,27 @@ public class WebHookService {
     }
 
     @Transactional
-    public void addDomainChannel(String domain, String channel) {
-        DomainChannelEntity domainChannel = DomainChannelEntity.builder()
+    public void addDomainChannel(String domain, String viewUrl, String replyUrl, String channel) {
+        DomainEntity duplicateEntity = domainRepository.findByDomain(domain).orElse(null);
+
+        if(duplicateEntity != null){
+            throw new RuntimeException("도메인이 이미 존재합니다.");
+        }
+
+        DomainEntity domainEntity = DomainEntity.builder()
                 .domain(domain)
+                .viewUrl(viewUrl)
+                .replyUrl(replyUrl)
+                .build();
+
+        DomainChannelEntity domainChannel = DomainChannelEntity.builder()
+                .domain(domainEntity)
                 .channel(channel)
                 .build();
-        
-        if(!domainChannelRepository.findByDomainAndChannel(domain, channel).isEmpty()) throw new RuntimeException("이미 등록된 채널");
+
+        DomainEntity savedDomain = domainRepository.save(domainEntity);
+
+        if(!domainChannelRepository.findByDomainAndChannel(savedDomain, channel).isEmpty()) throw new RuntimeException("이미 등록된 채널");
         
         domainChannelRepository.save(domainChannel);
     }
@@ -72,11 +90,14 @@ public class WebHookService {
                 .content(addBoardDto.getContent())
                 .writer(addBoardDto.getWriter())
                 .regDate(addBoardDto.getRegDate())
-                .link(addBoardDto.getLink())
                 .boardId((long) addBoardDto.getBoardId())
                 .ts(addBoardDto.getTs())
                 .build();
 
         return boardRepository.save(board);
+    }
+
+    public void sendReply(String ts, String channel, String text, String user) {
+
     }
 }

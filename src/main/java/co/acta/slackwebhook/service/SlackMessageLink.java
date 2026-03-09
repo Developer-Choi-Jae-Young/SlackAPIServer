@@ -14,7 +14,7 @@ public class SlackMessageLink implements SlackSendAPI {
     public Map<?, ?> makeMessageFrame(AddBoardDto boardDto, List<MultipartFile> files, String channelId) {
         Map<String, Object> actionBlock = new HashMap<>();
 
-        if(boardDto.getLink().contains("https://") || boardDto.getLink().contains("http://")) {
+        if(boardDto.getParentBoardId() == null && (boardDto.getLink().contains("https://") || boardDto.getLink().contains("http://"))) {
             actionBlock.put("type", "actions");
             Map<String, Object> buttonElement = new HashMap<>();
             buttonElement.put("type", "button");
@@ -22,7 +22,7 @@ public class SlackMessageLink implements SlackSendAPI {
             buttonText.put("type", "plain_text");
             buttonText.put("text", "게시글 보기");
             buttonElement.put("text", buttonText);
-            buttonElement.put("url", boardDto.getLink());
+            buttonElement.put("url", boardDto.getLink() + boardDto.getBoardId());
             buttonElement.put("style", "primary");
             List<Map<String, Object>> elements = new ArrayList<>();
             elements.add(buttonElement);

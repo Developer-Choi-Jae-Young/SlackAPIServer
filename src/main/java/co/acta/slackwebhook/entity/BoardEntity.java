@@ -5,10 +5,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
+import javax.persistence.*;
 import java.time.LocalDate;
 
 @Entity
@@ -23,7 +20,9 @@ public class BoardEntity {
     private String content;
     private String writer;
     private LocalDate regDate;
-    private String link;
     private Long boardId;
     private String ts;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "domainId")
+    private DomainEntity domain;
 }

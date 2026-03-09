@@ -19,6 +19,7 @@ public class SlackMessageFile implements SlackSendAPI {
     @Override
     public Map<?, ?> makeMessageFrame(AddBoardDto boardDto, List<MultipartFile> files, String channelId) {
         Map<String, Object> fileLinkBlock = new HashMap<>();
+        List<Map<String, String>> fields = new ArrayList<>();
 
         if (files != null && !files.isEmpty()) {
             List<Map<String, String>> uploadedFiles = new ArrayList<>();
@@ -29,16 +30,17 @@ public class SlackMessageFile implements SlackSendAPI {
             }
 
             if (!uploadedFiles.isEmpty()) {
-                callRestAPI.filesCompleteUploadExternal(uploadedFiles, channelId).forEach(fInfo -> {
+                callRestAPI.filesCompleteUploadExternal(uploadedFiles, channelId).stream().forEach(fInfo -> {
                     String permalink = (String) fInfo.get("permalink");
                     String name = (String) fInfo.get("name");
 
-                    fileLinkBlock.put("type", "section");
-                    Map<String, String> linkText = new HashMap<>();
-                    linkText.put("type", "mrkdwn");
-                    linkText.put("text", String.format("📎 *첨부파일:* <%s|%s>", permalink, name));
-                    fileLinkBlock.put("text", linkText);
+                    Map<String, String> field = new HashMap<>();
+                    field.put("type", "mrkdwn");
+                    field.put("text", String.format("📎 *첨부파일:* <%s|%s>", permalink, name));
+                    fields.add(field);
                 });
+                fileLinkBlock.put("type", "section");
+                fileLinkBlock.put("fields", fields);
             }
         }
 

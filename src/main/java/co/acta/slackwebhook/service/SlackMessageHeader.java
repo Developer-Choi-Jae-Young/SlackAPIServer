@@ -16,11 +16,13 @@ public class SlackMessageHeader implements SlackSendAPI {
     public Map<?, ?> makeMessageFrame(AddBoardDto boardDto, List<MultipartFile> files, String channelId) {
         Map<String, Object> headerBlock = new HashMap<>();
 
-        headerBlock.put("type", "header");
-        Map<String, String> headerText = new HashMap<>();
-        headerText.put("type", "plain_text");
-        headerText.put("text", String.format("🔔 제목 : %s", boardDto.getTitle()));
-        headerBlock.put("text", headerText);
+        if(boardDto.getTitle() != null && !boardDto.getTitle().isEmpty()) {
+            headerBlock.put("type", "header");
+            Map<String, String> headerText = new HashMap<>();
+            headerText.put("type", "plain_text");
+            headerText.put("text", String.format("🔔 제목 : %s", boardDto.getTitle()));
+            headerBlock.put("text", headerText);
+        }
 
         return headerBlock;
     }

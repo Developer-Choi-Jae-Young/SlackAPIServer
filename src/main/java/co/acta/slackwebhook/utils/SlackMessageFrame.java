@@ -1,8 +1,10 @@
-package co.acta.slackwebhook.Utils;
+package co.acta.slackwebhook.utils;
 
 import co.acta.slackwebhook.service.*;
 import co.acta.slackwebhook.service.interfaces.SlackSendAPI;
+import lombok.Getter;
 
+@Getter
 public enum SlackMessageFrame {
     HEADER(SlackMessageHeader.class),
     DIVIDER_1(SlackMessageDivider.class),
@@ -17,9 +19,5 @@ public enum SlackMessageFrame {
 
     SlackMessageFrame(Class<? extends SlackSendAPI> serviceClass) {
         this.serviceClass = serviceClass;
-    }
-
-    public Class<? extends SlackSendAPI> getServiceClass() {
-        return serviceClass;
     }
 }

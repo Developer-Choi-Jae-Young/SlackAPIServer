@@ -1,4 +1,4 @@
-package co.acta.slackwebhook.Utils;
+package co.acta.slackwebhook.utils;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;

@@ -1,12 +1,10 @@
 package co.acta.slackwebhook.service;
 
-import co.acta.slackwebhook.Utils.CallRestAPI;
+import co.acta.slackwebhook.utils.CallRestAPI;
 import co.acta.slackwebhook.dto.request.AddBoardDto;
 import co.acta.slackwebhook.service.interfaces.SlackSendAPI;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.annotation.Order;
-import org.springframework.http.*;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -31,7 +29,7 @@ public class SlackMessageFile implements SlackSendAPI {
             }
 
             if (!uploadedFiles.isEmpty()) {
-                callRestAPI.filesCompleteUploadExternal(uploadedFiles, channelId).stream().forEach(fInfo -> {
+                callRestAPI.filesCompleteUploadExternal(uploadedFiles, channelId).forEach(fInfo -> {
                     String permalink = (String) fInfo.get("permalink");
                     String name = (String) fInfo.get("name");
 

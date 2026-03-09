@@ -1,4 +1,4 @@
-package co.acta.slackwebhook.Utils;
+package co.acta.slackwebhook.utils;
 
 import java.util.List;
 import java.util.Map;

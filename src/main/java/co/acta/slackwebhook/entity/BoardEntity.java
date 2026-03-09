@@ -24,6 +24,6 @@ public class BoardEntity {
     private String writer;
     private LocalDate regDate;
     private String link;
-    private Long parentId;
+    private Long boardId;
     private String ts;
 }

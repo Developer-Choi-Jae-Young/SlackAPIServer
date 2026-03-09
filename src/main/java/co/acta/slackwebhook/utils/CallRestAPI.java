@@ -1,4 +1,4 @@
-package co.acta.slackwebhook.Utils;
+package co.acta.slackwebhook.utils;
 
 import co.acta.slackwebhook.dto.request.AddBoardDto;
 import co.acta.slackwebhook.service.SlackMessageLayout;
@@ -11,10 +11,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Component
 @RequiredArgsConstructor
@@ -28,11 +25,11 @@ public class CallRestAPI {
 
         try {
             String getUrl = "https://slack.com/api/files.getUploadURLExternal"
-                    + "?filename=" + URLEncoder.encode(mfile.getOriginalFilename(), StandardCharsets.UTF_8.name())
+                    + "?filename=" + URLEncoder.encode(Objects.requireNonNull(mfile.getOriginalFilename()), StandardCharsets.UTF_8.name())
                     + "&length=" + mfile.getSize();
 
             ResponseEntity<Map> urlRes = restTemplate.exchange(getUrl, HttpMethod.GET, new HttpEntity<>(HttpHeader.headers), Map.class);
-            Map<String, Object> urlBody = urlRes.getBody();
+            Map urlBody = urlRes.getBody();
 
             if (urlBody != null && (boolean) urlBody.get("ok")) {
                 String uploadUrl = (String) urlBody.get("upload_url");
@@ -61,7 +58,7 @@ public class CallRestAPI {
         completeBody.put("channel_id", channelId);
 
         ResponseEntity<Map> completeRes = restTemplate.postForEntity(completeUrl, new HttpEntity<>(completeBody, HttpHeader.headers), Map.class);
-        Map<String, Object> completeResBody = completeRes.getBody();
+        Map completeResBody = completeRes.getBody();
 
         if (completeResBody != null && (boolean) completeResBody.get("ok")) {
             filesInfo = (List<Map<String, Object>>) completeResBody.get("files");
@@ -80,13 +77,13 @@ public class CallRestAPI {
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, HttpHeader.headers);
         ResponseEntity<Map> res = restTemplate.postForEntity(url, request, Map.class);
 
-        Map<String, Object> responseBody = res.getBody();
+        Map responseBody = res.getBody();
         if (responseBody != null && Boolean.TRUE.equals(responseBody.get("ok"))) {
             messageTs = (String) responseBody.get("ts");
         } else {
             log.error("슬랙 메시지 전송 실패: {}", responseBody);
         }
 
-        return  messageTs;
+        return messageTs;
     }
 }

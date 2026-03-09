@@ -12,7 +12,8 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @Builder
 public class AddBoardDto {
-    private int parentBoardId;
+    private Integer parentBoardId;
+    private Integer boardId;
     private String title;
     private String content;
     private String writer;

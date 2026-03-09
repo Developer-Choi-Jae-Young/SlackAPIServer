@@ -1,7 +1,7 @@
 package co.acta.slackwebhook.service;
 
-import co.acta.slackwebhook.Utils.CallRestAPI;
-import co.acta.slackwebhook.Utils.SlackMessageFrame;
+import co.acta.slackwebhook.utils.CallRestAPI;
+import co.acta.slackwebhook.utils.SlackMessageFrame;
 import co.acta.slackwebhook.dto.request.AddBoardDto;
 import co.acta.slackwebhook.entity.BoardEntity;
 import co.acta.slackwebhook.entity.DomainChannelEntity;
@@ -10,7 +10,6 @@ import co.acta.slackwebhook.repository.DomainChannelRepository;
 import co.acta.slackwebhook.service.interfaces.SlackSendAPI;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -28,9 +27,9 @@ public class WebHookService {
 
     @Transactional
     public void sendAPI(AddBoardDto boardDto, String domain, List<MultipartFile> files) {
-        String parentTs = boardRepository.findById((long) boardDto.getParentBoardId()).map(BoardEntity::getTs).orElse(null);
-
+        String parentTs = boardDto.getParentBoardId() != null ? boardRepository.findByBoardId((long) boardDto.getParentBoardId()).map(BoardEntity::getTs).orElse(null) : null;
         List<DomainChannelEntity> domainChannelList = domainChannelRepository.findByDomain(domain);
+
         domainChannelList.forEach((data) -> {
             String ts = callRestAPI.sendMessage(boardDto, data.getChannel(), parentTs, () -> {
                 List<Map<String, Object>> blocks = new ArrayList<>();
@@ -46,7 +45,7 @@ public class WebHookService {
             });
 
             boardDto.setTs(ts);
-            addBoard(boardDto);
+            BoardEntity board = addBoard(boardDto);
         });
     }
 
@@ -61,7 +60,7 @@ public class WebHookService {
                 .channel(channel)
                 .build();
         
-        if(domainChannelRepository.findByDomainAndChannel(domain, channel).size() > 0) throw new RuntimeException("이미 등록된 채널");
+        if(!domainChannelRepository.findByDomainAndChannel(domain, channel).isEmpty()) throw new RuntimeException("이미 등록된 채널");
         
         domainChannelRepository.save(domainChannel);
     }
@@ -74,7 +73,7 @@ public class WebHookService {
                 .writer(addBoardDto.getWriter())
                 .regDate(addBoardDto.getRegDate())
                 .link(addBoardDto.getLink())
-                .parentId((long) addBoardDto.getParentBoardId())
+                .boardId((long) addBoardDto.getBoardId())
                 .ts(addBoardDto.getTs())
                 .build();
 

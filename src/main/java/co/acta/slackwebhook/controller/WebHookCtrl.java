@@ -68,14 +68,13 @@ public class WebHookCtrl {
             String type = (String) event.get("type");
             String text = (String) event.get("text");
             String user = (String) event.get("user");
-            String ts = (String) event.get("ts");
+            String ts = (String) event.get("thread_ts");
             String channel = (String) event.get("channel");
+            List<Map<String, Object>> files = (List<Map<String, Object>>) event.get("files");
 
             if (event.get("bot_id") == null && "message".equals(type)) {
                 System.out.println("사용자(" + user + ")의 메시지: " + text);
-
-                // 여기서 DB 저장이나 비즈니스 로직을 실행하세요!
-                webHookService.sendReply(ts, channel, text, user);
+                webHookService.sendReply(ts, channel, text, user, files);
             }
         }
 

@@ -23,6 +23,6 @@ public class BoardEntity {
     private Long boardId;
     private String ts;
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "domainId")
-    private DomainEntity domain;
+    @JoinColumn(name = "domainChannelId")
+    private DomainChannelEntity domainChannel;
 }

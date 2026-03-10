@@ -115,8 +115,8 @@ public class WebHookService {
 
         String loginUrl = "http://localhost/login.act.json";
         MultiValueMap<String, String> loginParams = new LinkedMultiValueMap<>();
-        loginParams.add("id", "cjy951213");
-        loginParams.add("pw", "wodud5006");
+        loginParams.add("id", "");
+        loginParams.add("pw", "");
 
         ResponseEntity<String> loginResponse = restTemplate.postForEntity(loginUrl, loginParams, String.class);
         String sessionCookie = loginResponse.getHeaders().getFirst(HttpHeaders.SET_COOKIE);

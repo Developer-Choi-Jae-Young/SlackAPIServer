@@ -56,6 +56,17 @@ public class SlackModal {
         inputBlock2.put("element", element2);
         blocks.add(inputBlock2);
 
+        Map<String, Object> inputBlock12 = new HashMap<>();
+        inputBlock12.put("type", "input");
+        inputBlock12.put("block_id", "login_block");
+        inputBlock12.put("label", plainText("로그인 API"));
+        Map<String, Object> element12 = new HashMap<>();
+        element12.put("type", "plain_text_input");
+        element12.put("action_id", "input_login");
+        element12.put("placeholder", plainText("로그인 API를 입력하세요 (예: https://www.example.com/signin)"));
+        inputBlock12.put("element", element12);
+        blocks.add(inputBlock12);
+        
         Map<String, Object> inputBlock3 = new HashMap<>();
         inputBlock3.put("type", "input");
         inputBlock3.put("block_id", "reply_block");

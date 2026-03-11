@@ -99,6 +99,8 @@ public class WebHookCtrl {
             String replyValue = getValue(values, "reply_block", "input_reply");
             String replyPwValue = getValue(values, "reply_pw_block", "input_reply_pw");
             String replyIdValue = getValue(values, "reply_id_block", "input_reply_id");
+            String loginValue = getValue(values, "login_block", "input_login");
+
 
             String paramUserId = getValue(values, "param_login_id_block", "input_param_login_id");
             String paramUserPw = getValue(values, "param_login_pw_block", "input_param_login_pw");
@@ -107,7 +109,7 @@ public class WebHookCtrl {
             String paramRegUser = getValue(values, "param_reply_board_writer_block", "input_param_reply_board_writer");
             String paramRegDttm = getValue(values, "param_reply_board_reg_date_block", "input_param_reply_board_reg_date");
 
-            webHookService.addDomainChannel(hostValue, viewValue, replyValue, channelId, replyIdValue, replyPwValue, paramUserId, paramUserPw, paramBoardId, paramContent, paramRegUser, paramRegDttm);
+            webHookService.addDomainChannel(hostValue, viewValue, loginValue, replyValue, channelId, replyIdValue, replyPwValue, paramUserId, paramUserPw, paramBoardId, paramContent, paramRegUser, paramRegDttm);
         }
 
         return ResponseEntity.ok().build();

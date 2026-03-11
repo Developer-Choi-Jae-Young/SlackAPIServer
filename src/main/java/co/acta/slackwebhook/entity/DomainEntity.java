@@ -18,6 +18,7 @@ public class DomainEntity {
     private String domain;
     private String replyUrl;
     private String viewUrl;
+    private String loginUrl;
     private String accountId;
     private String accountPw;
     private String paramNameUserId;

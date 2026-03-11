@@ -71,7 +71,7 @@ public class WebHookService {
     }
 
     @Transactional
-    public void addDomainChannel(String domain, String viewUrl, String replyUrl, String channel, String replyIdValue, String replyPwValue, String paramUserId, String paramUserPw,String paramBoardId, String paramContent, String paramRegUser, String paramRegDttm) {
+    public void addDomainChannel(String domain, String viewUrl, String loginUrl, String replyUrl, String channel, String replyIdValue, String replyPwValue, String paramUserId, String paramUserPw,String paramBoardId, String paramContent, String paramRegUser, String paramRegDttm) {
         String encPassword = textEncryptor.encrypt(replyPwValue);
         DomainEntity duplicateEntity = domainRepository.findByDomain(domain).orElse(null);
 
@@ -82,6 +82,7 @@ public class WebHookService {
         DomainEntity domainEntity = DomainEntity.builder()
                 .domain(domain)
                 .viewUrl(viewUrl)
+                .loginUrl(loginUrl)
                 .replyUrl(replyUrl)
                 .accountId(replyIdValue)
                 .accountPw(encPassword)
@@ -126,6 +127,7 @@ public class WebHookService {
         BoardEntity board = boardRepository.findByTsAndDomainChannel_Channel(ts, channel)
                 .orElseThrow(() -> new RuntimeException("URL을 찾을 수 없습니다."));
         String replyUrl = board.getDomainChannel().getDomain().getReplyUrl();
+        String loginUrl = board.getDomainChannel().getDomain().getLoginUrl();
         Long boardId = board.getBoardId();
         String accountId = board.getDomainChannel().getDomain().getAccountId();
         String accountPw = board.getDomainChannel().getDomain().getAccountPw();
@@ -137,7 +139,6 @@ public class WebHookService {
         String paramBoardRegUserName = board.getDomainChannel().getDomain().getParamNameRegUsrNm();
         String paramBoardRegDttm = board.getDomainChannel().getDomain().getParamNameRegDttm();
 
-        String loginUrl = "http://localhost/login.act.json";
         MultiValueMap<String, String> loginParams = new LinkedMultiValueMap<>();
         loginParams.add(paramUserId, accountId);
         loginParams.add(paramUserPw, textEncryptor.decrypt(accountPw));

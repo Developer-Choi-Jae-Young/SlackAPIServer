@@ -63,7 +63,6 @@ public class WebHookCtrl {
     public ResponseEntity<?> slackCheckEvent(@RequestBody Map<String, Object> payload) {
         Map<String, Object> event = (Map<String, Object>) payload.get("event");
         if (payload.containsKey("challenge")) return ResponseEntity.ok(payload.get("challenge"));
-
         if (event != null) {
             String type = (String) event.get("type");
             String text = (String) event.get("text");
@@ -98,8 +97,17 @@ public class WebHookCtrl {
             String hostValue = getValue(values, "host_block", "input_host");
             String viewValue = getValue(values, "view_block", "input_view");
             String replyValue = getValue(values, "reply_block", "input_reply");
+            String replyPwValue = getValue(values, "reply_pw_block", "input_reply_pw");
+            String replyIdValue = getValue(values, "reply_id_block", "input_reply_id");
 
-            webHookService.addDomainChannel(hostValue, viewValue, replyValue, channelId);
+            String paramUserId = getValue(values, "param_login_id_block", "input_param_login_id");
+            String paramUserPw = getValue(values, "param_login_pw_block", "input_param_login_pw");
+            String paramBoardId = getValue(values, "param_reply_board_id_block", "input_param_reply_board_id");
+            String paramContent = getValue(values, "param_reply_board_content_block", "input_param_reply_board_content");
+            String paramRegUser = getValue(values, "param_reply_board_writer_block", "input_param_reply_board_writer");
+            String paramRegDttm = getValue(values, "param_reply_board_reg_date_block", "input_param_reply_board_reg_date");
+
+            webHookService.addDomainChannel(hostValue, viewValue, replyValue, channelId, replyIdValue, replyPwValue, paramUserId, paramUserPw, paramBoardId, paramContent, paramRegUser, paramRegDttm);
         }
 
         return ResponseEntity.ok().build();

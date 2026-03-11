@@ -18,4 +18,12 @@ public class DomainEntity {
     private String domain;
     private String replyUrl;
     private String viewUrl;
+    private String accountId;
+    private String accountPw;
+    private String paramNameUserId;
+    private String paramNameUserPw;
+    private String paramNameBoardId;
+    private String paramNameContent;
+    private String paramNameRegUsrNm;
+    private String paramNameRegDttm;
 }

@@ -1,16 +1,25 @@
 package co.acta.slackwebhook.utils;
 
 import co.acta.slackwebhook.dto.request.AddBoardDto;
-import co.acta.slackwebhook.service.SlackMessageLayout;
+import co.acta.slackwebhook.service.message.SlackMessageLayout;
+import co.acta.slackwebhook.service.modal.SlackModalLayout;
+import co.acta.slackwebhook.utils.auth.interfaces.Authenticate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.core.io.Resource;
 import org.springframework.http.*;
 import org.springframework.stereotype.Component;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @Component
@@ -19,6 +28,8 @@ import java.util.*;
 public class CallRestAPI {
     private final RestTemplate restTemplate;
     private final SlackMessageLayout slackMessageLayout;
+    private final SlackModalLayout slackModalLayout;
+    private final List<Authenticate> authenticate;
 
     public Map<String, String> filesGetUploadURLExternal(MultipartFile mfile) {
         Map<String, String> fileMap = new HashMap<>();
@@ -67,6 +78,68 @@ public class CallRestAPI {
         return filesInfo;
     }
 
+    public HttpHeaders login(String url, String paramId, String paramPw, String id, String pw, LoginType loginType) {
+        MultiValueMap<String, String> loginParams = new LinkedMultiValueMap<>();
+        loginParams.add(paramId, id);
+        loginParams.add(paramPw, pw);
+        ResponseEntity<String> loginResponse = restTemplate.postForEntity(url, loginParams, String.class);
+
+        Authenticate strategy = authenticate.stream().filter(auth -> auth.supports(loginType)).findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("지원하지 않는 로그인 타입입니다."));
+        return strategy.login(loginResponse);
+    }
+
+    public void reply(String url, String paramBoardId, String paramBoardContent, String paramBoardRegUserName, String paramBoardRegDttm,
+                      Long boardId, String text, String user, HttpHeaders httpHeaders, List<Map<String, Object>> files) {
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add(paramBoardId, boardId);
+        body.add(paramBoardContent, text);
+        body.add(paramBoardRegUserName, user);
+        body.add(paramBoardRegDttm, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+
+        if (files != null && !files.isEmpty()) {
+            for (Map<String, Object> fileInfo : files) {
+                String downloadUrl = (String) fileInfo.get("url_private_download");
+                String fileName = (String) fileInfo.get("name");
+                if (downloadUrl != null) body.add("file", makeDownloadFile(downloadUrl, fileName));
+            }
+        }
+
+        try {
+            HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, httpHeaders);
+            restTemplate.postForEntity(url, requestEntity, String.class);
+        } catch (RestClientException e) {
+            log.error("전송 실패: {}", e.getMessage());
+        }
+    }
+
+    private HttpEntity<?> makeDownloadFile(String downloadUrl, String fileName) {
+        Resource fileResource = downloadSlackFile(downloadUrl, fileName);
+        HttpHeaders fileHeaders = new HttpHeaders();
+        fileHeaders.setContentDispositionFormData("file", fileName);
+        fileHeaders.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+        return new HttpEntity<>(fileResource, fileHeaders);
+    }
+
+    private Resource downloadSlackFile(String url, String fileName) {
+        RestTemplate restTemplate = new RestTemplate();
+        HttpEntity<?> entity = new HttpEntity<>(HttpHeader.headers);
+        ResponseEntity<byte[]> response = restTemplate.exchange(url, HttpMethod.GET, entity, byte[].class);
+        byte[] data = response.getBody();
+
+        return new ByteArrayResource(data) {
+            @Override
+            public String getFilename() {
+                return fileName;
+            }
+
+            @Override
+            public long contentLength() {
+                return data.length;
+            }
+        };
+    }
+
     public String sendMessage(AddBoardDto boardDto, String channelId, String parentTs, SlackSendCallBack slackSendCallBack) {
         String messageTs = "";
         String url = "https://slack.com/api/chat.postMessage";
@@ -85,5 +158,19 @@ public class CallRestAPI {
         }
 
         return messageTs;
+    }
+
+    public void openModal(String triggerId, String channelId, SlackSendCallBack slackSendCallBack) {
+        String url = "https://slack.com/api/views.open";
+
+        List<Map<String, Object>> blocks = slackSendCallBack.callback();
+        Map<String, Object> payload = slackModalLayout.makeLayout(triggerId, channelId, blocks);
+        try {
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(payload, HttpHeader.headers);
+            ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
+            log.info("Slack API Response: {}", response.getBody());
+        } catch (Exception e) {
+            log.info("모달 오픈 실패: {}", e.getMessage());
+        }
     }
 }

@@ -1,8 +1,8 @@
-package co.acta.slackwebhook.service;
+package co.acta.slackwebhook.service.message;
 
 import co.acta.slackwebhook.utils.CallRestAPI;
 import co.acta.slackwebhook.dto.request.AddBoardDto;
-import co.acta.slackwebhook.service.interfaces.SlackSendAPI;
+import co.acta.slackwebhook.service.message.interfaces.SlackMessageAPI;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -13,7 +13,7 @@ import java.util.*;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class SlackMessageFile implements SlackSendAPI {
+public class SlackMessageFile implements SlackMessageAPI {
     private final CallRestAPI callRestAPI;
 
     @Override

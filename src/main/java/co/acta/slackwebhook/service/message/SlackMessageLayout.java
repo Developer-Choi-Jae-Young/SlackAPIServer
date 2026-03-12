@@ -1,4 +1,4 @@
-package co.acta.slackwebhook.service;
+package co.acta.slackwebhook.service.message;
 
 import co.acta.slackwebhook.dto.request.AddBoardDto;
 import org.springframework.stereotype.Component;

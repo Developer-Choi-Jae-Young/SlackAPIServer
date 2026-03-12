@@ -1,15 +1,14 @@
-package co.acta.slackwebhook.service;
+package co.acta.slackwebhook.service.message;
 
 import co.acta.slackwebhook.dto.request.AddBoardDto;
-import co.acta.slackwebhook.service.interfaces.SlackSendAPI;
-import org.springframework.core.annotation.Order;
+import co.acta.slackwebhook.service.message.interfaces.SlackMessageAPI;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.*;
 
 @Component
-public class SlackMessageLink implements SlackSendAPI {
+public class SlackMessageLink implements SlackMessageAPI {
     @Override
     public Map<?, ?> makeMessageFrame(AddBoardDto boardDto, List<MultipartFile> files, String channelId) {
         Map<String, Object> actionBlock = new HashMap<>();

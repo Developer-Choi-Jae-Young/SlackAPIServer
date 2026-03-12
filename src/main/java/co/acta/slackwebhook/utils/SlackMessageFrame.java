@@ -1,7 +1,7 @@
 package co.acta.slackwebhook.utils;
 
-import co.acta.slackwebhook.service.*;
-import co.acta.slackwebhook.service.interfaces.SlackSendAPI;
+import co.acta.slackwebhook.service.message.interfaces.SlackMessageAPI;
+import co.acta.slackwebhook.service.message.*;
 import lombok.Getter;
 
 @Getter
@@ -15,9 +15,9 @@ public enum SlackMessageFrame {
     FILE(SlackMessageFile.class),
     LINK(SlackMessageLink.class);
 
-    private final Class<? extends SlackSendAPI> serviceClass;
+    private final Class<? extends SlackMessageAPI> serviceClass;
 
-    SlackMessageFrame(Class<? extends SlackSendAPI> serviceClass) {
+    SlackMessageFrame(Class<? extends SlackMessageAPI> serviceClass) {
         this.serviceClass = serviceClass;
     }
 }

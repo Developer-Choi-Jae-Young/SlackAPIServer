@@ -2,32 +2,26 @@ package co.acta.slackwebhook.service;
 
 import co.acta.slackwebhook.entity.DomainEntity;
 import co.acta.slackwebhook.repository.DomainRepository;
+import co.acta.slackwebhook.service.modal.interfaces.SlackModalAPI;
 import co.acta.slackwebhook.utils.CallRestAPI;
-import co.acta.slackwebhook.utils.HttpHeader;
+import co.acta.slackwebhook.utils.LoginType;
 import co.acta.slackwebhook.utils.SlackMessageFrame;
 import co.acta.slackwebhook.dto.request.AddBoardDto;
 import co.acta.slackwebhook.entity.BoardEntity;
 import co.acta.slackwebhook.entity.DomainChannelEntity;
 import co.acta.slackwebhook.repository.BoardRepository;
 import co.acta.slackwebhook.repository.DomainChannelRepository;
-import co.acta.slackwebhook.service.interfaces.SlackSendAPI;
+import co.acta.slackwebhook.service.message.interfaces.SlackMessageAPI;
+import co.acta.slackwebhook.utils.SlackModalFrame;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.io.ByteArrayResource;
-import org.springframework.core.io.Resource;
 import org.springframework.http.*;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.crypto.encrypt.TextEncryptor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
-import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @Service
@@ -37,7 +31,8 @@ public class WebHookService {
     private final DomainChannelRepository domainChannelRepository;
     private final DomainRepository domainRepository;
     private final BoardRepository boardRepository;
-    private final List<SlackSendAPI> slackSendAPIList;
+    private final List<SlackMessageAPI> slackMessageAPIList;
+    private final List<SlackModalAPI> slackModalAPIList;
     private final CallRestAPI callRestAPI;
     private final TextEncryptor textEncryptor;
 
@@ -52,7 +47,7 @@ public class WebHookService {
                 List<Map<String, Object>> blocks = new ArrayList<>();
 
                 for (SlackMessageFrame frame : SlackMessageFrame.values()) {
-                    findBean(frame.getServiceClass()).ifPresent(service -> {
+                    findMessageBean(frame.getServiceClass()).ifPresent(service -> {
                         Map<String, Object> result = (Map<String, Object>) service.makeMessageFrame(boardDto, files, data.getChannel());
                         if (result != null && !result.isEmpty()) blocks.add(result);
                     });
@@ -66,8 +61,8 @@ public class WebHookService {
         });
     }
 
-    private Optional<SlackSendAPI> findBean(Class<? extends SlackSendAPI> clazz) {
-        return slackSendAPIList.stream().filter(clazz::isInstance).findFirst();
+    private Optional<SlackMessageAPI> findMessageBean(Class<? extends SlackMessageAPI> clazz) {
+        return slackMessageAPIList.stream().filter(clazz::isInstance).findFirst();
     }
 
     @Transactional
@@ -123,82 +118,41 @@ public class WebHookService {
 
     @Async
     public void sendReply(String ts, String channel, String text, String user, List<Map<String, Object>> files) {
-        RestTemplate restTemplate = new RestTemplate();
         BoardEntity board = boardRepository.findByTsAndDomainChannel_Channel(ts, channel)
                 .orElseThrow(() -> new RuntimeException("URL을 찾을 수 없습니다."));
+
         String replyUrl = board.getDomainChannel().getDomain().getReplyUrl();
         String loginUrl = board.getDomainChannel().getDomain().getLoginUrl();
-        Long boardId = board.getBoardId();
         String accountId = board.getDomainChannel().getDomain().getAccountId();
         String accountPw = board.getDomainChannel().getDomain().getAccountPw();
-
         String paramUserId = board.getDomainChannel().getDomain().getParamNameUserId();
         String paramUserPw = board.getDomainChannel().getDomain().getParamNameUserPw();
         String paramBoardId = board.getDomainChannel().getDomain().getParamNameBoardId();
         String paramBoardContent = board.getDomainChannel().getDomain().getParamNameContent();
         String paramBoardRegUserName = board.getDomainChannel().getDomain().getParamNameRegUsrNm();
         String paramBoardRegDttm = board.getDomainChannel().getDomain().getParamNameRegDttm();
+        Long boardId = board.getBoardId();
 
-        MultiValueMap<String, String> loginParams = new LinkedMultiValueMap<>();
-        loginParams.add(paramUserId, accountId);
-        loginParams.add(paramUserPw, textEncryptor.decrypt(accountPw));
-
-        ResponseEntity<String> loginResponse = restTemplate.postForEntity(loginUrl, loginParams, String.class);
-        String sessionCookie = loginResponse.getHeaders().getFirst(HttpHeaders.SET_COOKIE);
-
-        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-        body.add(paramBoardId, boardId);
-        body.add(paramBoardContent, text);
-        body.add(paramBoardRegUserName, user);
-        body.add(paramBoardRegDttm, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
-
-        if (files != null && !files.isEmpty()) {
-            for (Map<String, Object> fileInfo : files) {
-                String downloadUrl = (String) fileInfo.get("url_private_download");
-                String fileName = (String) fileInfo.get("name");
-
-                if (downloadUrl != null) {
-                    Resource fileResource = downloadSlackFile(downloadUrl, fileName);
-                    HttpHeaders fileHeaders = new HttpHeaders();
-                    fileHeaders.setContentDispositionFormData("file", fileName);
-                    fileHeaders.setContentType(MediaType.APPLICATION_OCTET_STREAM);
-                    HttpEntity<Resource> fileEntity = new HttpEntity<>(fileResource, fileHeaders);
-
-                    body.add("file", fileEntity);
-                }
-            }
-        }
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
-        if (sessionCookie != null) {
-            headers.add(HttpHeaders.COOKIE, sessionCookie.split(";")[0]);
-        }
-        HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, headers);
-
-        try {
-            restTemplate.postForEntity(replyUrl, requestEntity, String.class);
-        } catch (RestClientException e) {
-            log.error("전송 실패: {}", e.getMessage());
-        }
+        HttpHeaders httpHeaders = callRestAPI.login(loginUrl, paramUserId, paramUserPw, accountId, textEncryptor.decrypt(accountPw), LoginType.Session);
+        callRestAPI.reply(replyUrl, paramBoardId, paramBoardContent, paramBoardRegUserName, paramBoardRegDttm, boardId, text, user, httpHeaders, files);
     }
 
-    private Resource downloadSlackFile(String url, String fileName) {
-        RestTemplate restTemplate = new RestTemplate();
-        HttpEntity<?> entity = new HttpEntity<>(HttpHeader.headers);
-        ResponseEntity<byte[]> response = restTemplate.exchange(url, HttpMethod.GET, entity, byte[].class);
-        byte[] data = response.getBody();
+    public void openModal(String triggerId, String channelId) {
+        callRestAPI.openModal(triggerId, channelId, () -> {
+            List<Map<String, Object>> blocks = new ArrayList<>();
 
-        return new ByteArrayResource(data) {
-            @Override
-            public String getFilename() {
-                return fileName;
+            for (SlackModalFrame frame : SlackModalFrame.values()) {
+                findModalBean(frame.getServiceClass()).ifPresent(service -> {
+                    Map<String, Object> result = (Map<String, Object>) service.makeModalFrame();
+                    if (result != null && !result.isEmpty()) blocks.add(result);
+                });
             }
 
-            @Override
-            public long contentLength() {
-                return data.length;
-            }
-        };
+            return blocks;
+        });
+    }
+
+    private Optional<SlackModalAPI> findModalBean(Class<? extends SlackModalAPI> clazz) {
+        return slackModalAPIList.stream().filter(clazz::isInstance).findFirst();
     }
 }

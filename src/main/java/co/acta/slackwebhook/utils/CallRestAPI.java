@@ -4,8 +4,13 @@ import co.acta.slackwebhook.dto.request.AddBoardDto;
 import co.acta.slackwebhook.service.message.SlackMessageLayout;
 import co.acta.slackwebhook.service.modal.SlackModalLayout;
 import co.acta.slackwebhook.utils.auth.interfaces.Authenticate;
+import co.acta.slackwebhook.utils.callback.SlackSendCallBack;
+import co.acta.slackwebhook.utils.enums.LoginType;
+import co.acta.slackwebhook.vo.BoardDomainInfo;
+import co.acta.slackwebhook.vo.SlackEventRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.*;
@@ -31,6 +36,9 @@ public class CallRestAPI {
     private final SlackModalLayout slackModalLayout;
     private final List<Authenticate> authenticate;
 
+    @Value("${slack.token}")
+    private String slackToken;
+
     public Map<String, String> filesGetUploadURLExternal(MultipartFile mfile) {
         Map<String, String> fileMap = new HashMap<>();
 
@@ -39,7 +47,10 @@ public class CallRestAPI {
                     + "?filename=" + URLEncoder.encode(Objects.requireNonNull(mfile.getOriginalFilename()), StandardCharsets.UTF_8.name())
                     + "&length=" + mfile.getSize();
 
-            ResponseEntity<Map> urlRes = restTemplate.exchange(getUrl, HttpMethod.GET, new HttpEntity<>(HttpHeader.headers), Map.class);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setBearerAuth(slackToken);
+            ResponseEntity<Map> urlRes = restTemplate.exchange(getUrl, HttpMethod.GET, new HttpEntity<>(headers), Map.class);
             Map urlBody = urlRes.getBody();
 
             if (urlBody != null && (boolean) urlBody.get("ok")) {
@@ -68,7 +79,10 @@ public class CallRestAPI {
         completeBody.put("files", uploadedFiles);
         completeBody.put("channel_id", channelId);
 
-        ResponseEntity<Map> completeRes = restTemplate.postForEntity(completeUrl, new HttpEntity<>(completeBody, HttpHeader.headers), Map.class);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(slackToken);
+        ResponseEntity<Map> completeRes = restTemplate.postForEntity(completeUrl, new HttpEntity<>(completeBody, headers), Map.class);
         Map completeResBody = completeRes.getBody();
 
         if (completeResBody != null && (boolean) completeResBody.get("ok")) {
@@ -89,25 +103,24 @@ public class CallRestAPI {
         return strategy.login(loginResponse);
     }
 
-    public void reply(String url, String paramBoardId, String paramBoardContent, String paramBoardRegUserName, String paramBoardRegDttm,
-                      Long boardId, String text, String user, HttpHeaders httpHeaders, List<Map<String, Object>> files) {
+    public void reply(BoardDomainInfo info, String text, String user, HttpHeaders httpHeaders, List<SlackEventRequest.SlackFile> files) {
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-        body.add(paramBoardId, boardId);
-        body.add(paramBoardContent, text);
-        body.add(paramBoardRegUserName, user);
-        body.add(paramBoardRegDttm, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+        body.add(info.getParamBoardId(), info.getBoardId());
+        body.add(info.getParamContent(), text);
+        body.add(info.getParamRegUserName(), user);
+        body.add(info.getParamRegDttm(), LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
 
-        if (files != null && !files.isEmpty()) {
-            for (Map<String, Object> fileInfo : files) {
-                String downloadUrl = (String) fileInfo.get("url_private_download");
-                String fileName = (String) fileInfo.get("name");
+        if (files != null) {
+            for (SlackEventRequest.SlackFile fileInfo : files) {
+                String downloadUrl = fileInfo.getUrlPrivate();
+                String fileName = fileInfo.getName();
                 if (downloadUrl != null) body.add("file", makeDownloadFile(downloadUrl, fileName));
             }
         }
 
         try {
             HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, httpHeaders);
-            restTemplate.postForEntity(url, requestEntity, String.class);
+            restTemplate.postForEntity(info.getReplyUrl(), requestEntity, String.class);
         } catch (RestClientException e) {
             log.error("전송 실패: {}", e.getMessage());
         }
@@ -122,7 +135,10 @@ public class CallRestAPI {
     }
 
     private Resource downloadSlackFile(String url, String fileName) {
-        HttpEntity<?> entity = new HttpEntity<>(HttpHeader.headers);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(slackToken);
+        HttpEntity<?> entity = new HttpEntity<>(headers);
         ResponseEntity<byte[]> response = restTemplate.exchange(url, HttpMethod.GET, entity, byte[].class);
         byte[] data = response.getBody();
 
@@ -146,7 +162,10 @@ public class CallRestAPI {
         List<Map<String, Object>> blocks = slackSendCallBack.callback();
         Map<String, Object> body = slackMessageLayout.makeLayout(boardDto, blocks, channelId, parentTs);
 
-        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, HttpHeader.headers);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(slackToken);
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
         ResponseEntity<Map> res = restTemplate.postForEntity(url, request, Map.class);
 
         Map responseBody = res.getBody();
@@ -165,7 +184,10 @@ public class CallRestAPI {
         List<Map<String, Object>> blocks = slackSendCallBack.callback();
         Map<String, Object> payload = slackModalLayout.makeLayout(triggerId, channelId, blocks);
         try {
-            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(payload, HttpHeader.headers);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setBearerAuth(slackToken);
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(payload, headers);
             ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
             log.info("Slack API Response: {}", response.getBody());
         } catch (Exception e) {

@@ -1,4 +1,4 @@
-package co.acta.slackwebhook.utils;
+package co.acta.slackwebhook.utils.enums;
 
 import co.acta.slackwebhook.service.message.interfaces.SlackMessageAPI;
 import co.acta.slackwebhook.service.message.*;
@@ -10,7 +10,7 @@ public enum SlackMessageFrame {
     DIVIDER_1(SlackMessageDivider.class),
     INFO(SlackMessageInfo.class),
     CONTENT_HEADER(SlackMessageContentHeader.class),
-    DIVIDER_2(SlackMessageDivider.class), // 중복 사용 가능
+    DIVIDER_2(SlackMessageDivider.class),
     CONTENT(SlackMessageContent.class),
     FILE(SlackMessageFile.class),
     LINK(SlackMessageLink.class);

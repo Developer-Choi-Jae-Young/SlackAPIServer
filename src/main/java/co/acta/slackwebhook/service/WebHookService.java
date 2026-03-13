@@ -4,16 +4,20 @@ import co.acta.slackwebhook.entity.DomainEntity;
 import co.acta.slackwebhook.repository.DomainRepository;
 import co.acta.slackwebhook.service.modal.interfaces.SlackModalAPI;
 import co.acta.slackwebhook.utils.CallRestAPI;
-import co.acta.slackwebhook.utils.LoginType;
-import co.acta.slackwebhook.utils.SlackMessageFrame;
+import co.acta.slackwebhook.utils.UtilsCommon;
+import co.acta.slackwebhook.utils.enums.LoginType;
+import co.acta.slackwebhook.utils.enums.SlackMessageFrame;
 import co.acta.slackwebhook.dto.request.AddBoardDto;
 import co.acta.slackwebhook.entity.BoardEntity;
 import co.acta.slackwebhook.entity.DomainChannelEntity;
 import co.acta.slackwebhook.repository.BoardRepository;
 import co.acta.slackwebhook.repository.DomainChannelRepository;
 import co.acta.slackwebhook.service.message.interfaces.SlackMessageAPI;
-import co.acta.slackwebhook.utils.SlackModalFrame;
+import co.acta.slackwebhook.utils.enums.SlackModalFrame;
+import co.acta.slackwebhook.vo.BoardDomainInfo;
+import co.acta.slackwebhook.vo.DomainChannelRequest;
 import co.acta.slackwebhook.vo.DomainInfo;
+import co.acta.slackwebhook.vo.SlackEventRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
@@ -48,7 +52,7 @@ public class WebHookService {
                 List<Map<String, Object>> blocks = new ArrayList<>();
 
                 for (SlackMessageFrame frame : SlackMessageFrame.values()) {
-                    findMessageBean(frame.getServiceClass()).ifPresent(service -> {
+                    UtilsCommon.findMessageBean(slackMessageAPIList, frame.getServiceClass()).ifPresent(service -> {
                         Map<String, Object> result = (Map<String, Object>) service.makeMessageFrame(boardDto, files, data.getChannel());
                         if (result != null && !result.isEmpty()) blocks.add(result);
                     });
@@ -62,30 +66,18 @@ public class WebHookService {
         });
     }
 
-    private Optional<SlackMessageAPI> findMessageBean(Class<? extends SlackMessageAPI> clazz) {
-        return slackMessageAPIList.stream().filter(clazz::isInstance).findFirst();
-    }
-
     @Transactional
-    public void addDomainChannel(String domain, String viewUrl, String loginUrl, String replyUrl, String channel, String replyIdValue, String replyPwValue, String paramUserId, String paramUserPw,String paramBoardId, String paramContent, String paramRegUser, String paramRegDttm) {
-        String encPassword = textEncryptor.encrypt(replyPwValue);
+    public void addDomainChannel(DomainChannelRequest request, String channel) {
+        String encPassword = textEncryptor.encrypt(request.getReplyPw());
         DomainChannelEntity domainChannelEntity = domainChannelRepository.findByChannel(channel).orElse(null);
 
         if(domainChannelEntity == null) {
             DomainEntity domainEntity = DomainEntity.builder()
-                    .domain(domain)
-                    .viewUrl(viewUrl)
-                    .loginUrl(loginUrl)
-                    .replyUrl(replyUrl)
-                    .accountId(replyIdValue)
-                    .accountPw(encPassword)
-                    .paramNameUserId(paramUserId)
-                    .paramNameUserPw(paramUserPw)
-                    .paramNameBoardId(paramBoardId)
-                    .paramNameContent(paramContent)
-                    .paramNameRegUsrNm(paramRegUser)
-                    .paramNameRegDttm(paramRegDttm)
-                    .build();
+                    .domain(request.getHost()).viewUrl(request.getView()).loginUrl(request.getLogin())
+                    .replyUrl(request.getReply()).accountId(request.getReplyId()).accountPw(encPassword)
+                    .paramNameUserId(request.getParamUserId()).paramNameUserPw(request.getParamUserPw())
+                    .paramNameBoardId(request.getParamBoardId()).paramNameContent(request.getParamContent())
+                    .paramNameRegUsrNm(request.getParamRegUser()).paramNameRegDttm(request.getParamRegDttm()).build();
 
             DomainChannelEntity domainChannel = DomainChannelEntity.builder()
                     .domain(domainEntity)
@@ -96,55 +88,48 @@ public class WebHookService {
             domainChannelRepository.save(domainChannel);
         } else {
             DomainEntity domainEntity = domainChannelEntity.getDomain();
-            domainEntity.setDomain(domain);
-            domainEntity.setViewUrl(viewUrl);
-            domainEntity.setLoginUrl(loginUrl);
-            domainEntity.setReplyUrl(replyUrl);
-            domainEntity.setAccountId(replyIdValue);
+            domainEntity.setDomain(request.getHost());
+            domainEntity.setViewUrl(request.getView());
+            domainEntity.setLoginUrl(request.getLogin());
+            domainEntity.setReplyUrl(request.getReply());
+            domainEntity.setAccountId(request.getReplyId());
             domainEntity.setAccountPw(encPassword);
-            domainEntity.setParamNameUserId(paramUserId);
-            domainEntity.setParamNameUserPw(paramUserPw);
-            domainEntity.setParamNameBoardId(paramBoardId);
-            domainEntity.setParamNameContent(paramContent);
-            domainEntity.setParamNameRegUsrNm(paramRegUser);
-            domainEntity.setParamNameRegDttm(paramRegDttm);
+            domainEntity.setParamNameUserId(request.getParamUserId());
+            domainEntity.setParamNameUserPw(request.getParamUserPw());
+            domainEntity.setParamNameBoardId(request.getParamBoardId());
+            domainEntity.setParamNameContent(request.getParamContent());
+            domainEntity.setParamNameRegUsrNm(request.getParamRegUser());
+            domainEntity.setParamNameRegDttm(request.getParamRegDttm());
         }
     }
 
     @Transactional
     public BoardEntity addBoard(AddBoardDto addBoardDto, DomainChannelEntity domainChannel) {
         BoardEntity board = BoardEntity.builder()
-                .title(addBoardDto.getTitle())
-                .content(addBoardDto.getContent())
-                .writer(addBoardDto.getWriter())
-                .regDate(addBoardDto.getRegDate())
+                .title(addBoardDto.getTitle()).content(addBoardDto.getContent())
+                .writer(addBoardDto.getWriter()).regDate(addBoardDto.getRegDate())
                 .boardId((long) addBoardDto.getBoardId())
-                .ts(addBoardDto.getTs())
-                .domainChannel(domainChannel)
-                .build();
+                .ts(addBoardDto.getTs()).domainChannel(domainChannel).build();
 
         return boardRepository.save(board);
     }
 
     @Async
-    public void sendReply(String ts, String channel, String text, String user, List<Map<String, Object>> files) {
+    public void sendReply(String ts, String channel, String text, String user, List<SlackEventRequest.SlackFile> files) {
         BoardEntity board = boardRepository.findByTsAndDomainChannel_Channel(ts, channel)
                 .orElseThrow(() -> new RuntimeException("URL을 찾을 수 없습니다."));
 
-        String replyUrl = board.getDomainChannel().getDomain().getReplyUrl();
-        String loginUrl = board.getDomainChannel().getDomain().getLoginUrl();
-        String accountId = board.getDomainChannel().getDomain().getAccountId();
-        String accountPw = board.getDomainChannel().getDomain().getAccountPw();
-        String paramUserId = board.getDomainChannel().getDomain().getParamNameUserId();
-        String paramUserPw = board.getDomainChannel().getDomain().getParamNameUserPw();
-        String paramBoardId = board.getDomainChannel().getDomain().getParamNameBoardId();
-        String paramBoardContent = board.getDomainChannel().getDomain().getParamNameContent();
-        String paramBoardRegUserName = board.getDomainChannel().getDomain().getParamNameRegUsrNm();
-        String paramBoardRegDttm = board.getDomainChannel().getDomain().getParamNameRegDttm();
-        Long boardId = board.getBoardId();
 
-        HttpHeaders httpHeaders = callRestAPI.login(loginUrl, paramUserId, paramUserPw, accountId, textEncryptor.decrypt(accountPw), LoginType.Session);
-        callRestAPI.reply(replyUrl, paramBoardId, paramBoardContent, paramBoardRegUserName, paramBoardRegDttm, boardId, text, user, httpHeaders, files);
+        BoardDomainInfo info = BoardDomainInfo.of(board);
+        String decryptedPw = textEncryptor.decrypt(info.getAccountPw());
+
+        HttpHeaders httpHeaders = callRestAPI.login(info.getLoginUrl(),
+                info.getParamUserId(),
+                info.getParamUserPw(),
+                info.getAccountId(),
+                decryptedPw,
+                LoginType.Session);
+        callRestAPI.reply(info, text, user, httpHeaders, files);
     }
 
     public void openModal(String triggerId, String channelId) {
@@ -157,7 +142,7 @@ public class WebHookService {
             List<Map<String, Object>> blocks = new ArrayList<>();
 
             for (SlackModalFrame frame : SlackModalFrame.values()) {
-                findModalBean(frame.getServiceClass()).ifPresent(service -> {
+                UtilsCommon.findModalBean(slackModalAPIList, frame.getServiceClass()).ifPresent(service -> {
                     Map<String, Object> result = (Map<String, Object>) service.makeModalFrame(domainInfo);
                     if (result != null && !result.isEmpty()) blocks.add(result);
                 });
@@ -165,9 +150,5 @@ public class WebHookService {
 
             return blocks;
         });
-    }
-
-    private Optional<SlackModalAPI> findModalBean(Class<? extends SlackModalAPI> clazz) {
-        return slackModalAPIList.stream().filter(clazz::isInstance).findFirst();
     }
 }

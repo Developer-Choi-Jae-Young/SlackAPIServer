@@ -1,6 +1,6 @@
 package co.acta.slackwebhook.utils.auth;
 
-import co.acta.slackwebhook.utils.LoginType;
+import co.acta.slackwebhook.utils.enums.LoginType;
 import co.acta.slackwebhook.utils.auth.interfaces.Authenticate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;

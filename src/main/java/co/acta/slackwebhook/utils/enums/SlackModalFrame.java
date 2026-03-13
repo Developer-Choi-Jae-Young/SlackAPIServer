@@ -1,4 +1,4 @@
-package co.acta.slackwebhook.utils;
+package co.acta.slackwebhook.utils.enums;
 
 import co.acta.slackwebhook.service.modal.*;
 import co.acta.slackwebhook.service.modal.interfaces.SlackModalAPI;

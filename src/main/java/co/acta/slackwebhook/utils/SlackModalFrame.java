@@ -1,7 +1,5 @@
 package co.acta.slackwebhook.utils;
 
-import co.acta.slackwebhook.service.message.interfaces.SlackMessageAPI;
-import co.acta.slackwebhook.service.message.*;
 import co.acta.slackwebhook.service.modal.*;
 import co.acta.slackwebhook.service.modal.interfaces.SlackModalAPI;
 import lombok.Getter;

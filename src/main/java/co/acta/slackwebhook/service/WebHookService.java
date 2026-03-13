@@ -13,6 +13,7 @@ import co.acta.slackwebhook.repository.BoardRepository;
 import co.acta.slackwebhook.repository.DomainChannelRepository;
 import co.acta.slackwebhook.service.message.interfaces.SlackMessageAPI;
 import co.acta.slackwebhook.utils.SlackModalFrame;
+import co.acta.slackwebhook.vo.DomainInfo;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
@@ -68,37 +69,46 @@ public class WebHookService {
     @Transactional
     public void addDomainChannel(String domain, String viewUrl, String loginUrl, String replyUrl, String channel, String replyIdValue, String replyPwValue, String paramUserId, String paramUserPw,String paramBoardId, String paramContent, String paramRegUser, String paramRegDttm) {
         String encPassword = textEncryptor.encrypt(replyPwValue);
-        DomainEntity duplicateEntity = domainRepository.findByDomain(domain).orElse(null);
+        DomainChannelEntity domainChannelEntity = domainChannelRepository.findByChannel(channel).orElse(null);
 
-        if(duplicateEntity != null){
-            throw new RuntimeException("도메인이 이미 존재합니다.");
+        if(domainChannelEntity == null) {
+            DomainEntity domainEntity = DomainEntity.builder()
+                    .domain(domain)
+                    .viewUrl(viewUrl)
+                    .loginUrl(loginUrl)
+                    .replyUrl(replyUrl)
+                    .accountId(replyIdValue)
+                    .accountPw(encPassword)
+                    .paramNameUserId(paramUserId)
+                    .paramNameUserPw(paramUserPw)
+                    .paramNameBoardId(paramBoardId)
+                    .paramNameContent(paramContent)
+                    .paramNameRegUsrNm(paramRegUser)
+                    .paramNameRegDttm(paramRegDttm)
+                    .build();
+
+            DomainChannelEntity domainChannel = DomainChannelEntity.builder()
+                    .domain(domainEntity)
+                    .channel(channel)
+                    .build();
+
+            DomainEntity savedDomain = domainRepository.save(domainEntity);
+            domainChannelRepository.save(domainChannel);
+        } else {
+            DomainEntity domainEntity = domainChannelEntity.getDomain();
+            domainEntity.setDomain(domain);
+            domainEntity.setViewUrl(viewUrl);
+            domainEntity.setLoginUrl(loginUrl);
+            domainEntity.setReplyUrl(replyUrl);
+            domainEntity.setAccountId(replyIdValue);
+            domainEntity.setAccountPw(encPassword);
+            domainEntity.setParamNameUserId(paramUserId);
+            domainEntity.setParamNameUserPw(paramUserPw);
+            domainEntity.setParamNameBoardId(paramBoardId);
+            domainEntity.setParamNameContent(paramContent);
+            domainEntity.setParamNameRegUsrNm(paramRegUser);
+            domainEntity.setParamNameRegDttm(paramRegDttm);
         }
-
-        DomainEntity domainEntity = DomainEntity.builder()
-                .domain(domain)
-                .viewUrl(viewUrl)
-                .loginUrl(loginUrl)
-                .replyUrl(replyUrl)
-                .accountId(replyIdValue)
-                .accountPw(encPassword)
-                .paramNameUserId(paramUserId)
-                .paramNameUserPw(paramUserPw)
-                .paramNameBoardId(paramBoardId)
-                .paramNameContent(paramContent)
-                .paramNameRegUsrNm(paramRegUser)
-                .paramNameRegDttm(paramRegDttm)
-                .build();
-
-        DomainChannelEntity domainChannel = DomainChannelEntity.builder()
-                .domain(domainEntity)
-                .channel(channel)
-                .build();
-
-        DomainEntity savedDomain = domainRepository.save(domainEntity);
-
-        if(!domainChannelRepository.findByDomainAndChannel(savedDomain, channel).isEmpty()) throw new RuntimeException("이미 등록된 채널");
-        
-        domainChannelRepository.save(domainChannel);
     }
 
     @Transactional
@@ -138,12 +148,17 @@ public class WebHookService {
     }
 
     public void openModal(String triggerId, String channelId) {
+        DomainChannelEntity domainChannelEntity = domainChannelRepository.findByChannel(channelId).orElse(null);
+        DomainEntity domainEntity = domainChannelEntity == null ? null : domainChannelEntity.getDomain();
+        if(domainEntity != null) domainEntity.setAccountPw(textEncryptor.decrypt(domainEntity.getAccountPw()));
+        DomainInfo domainInfo = DomainInfo.of(domainEntity);
+
         callRestAPI.openModal(triggerId, channelId, () -> {
             List<Map<String, Object>> blocks = new ArrayList<>();
 
             for (SlackModalFrame frame : SlackModalFrame.values()) {
                 findModalBean(frame.getServiceClass()).ifPresent(service -> {
-                    Map<String, Object> result = (Map<String, Object>) service.makeModalFrame();
+                    Map<String, Object> result = (Map<String, Object>) service.makeModalFrame(domainInfo);
                     if (result != null && !result.isEmpty()) blocks.add(result);
                 });
             }

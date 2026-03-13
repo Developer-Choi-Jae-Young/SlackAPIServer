@@ -2,7 +2,6 @@ package co.acta.slackwebhook.controller;
 
 import co.acta.slackwebhook.dto.request.AddBoardDto;
 import co.acta.slackwebhook.dto.request.AddWebHookDTO;
-import co.acta.slackwebhook.service.modal.SlackModalLayout;
 import co.acta.slackwebhook.service.WebHookService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;

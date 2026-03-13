@@ -2,6 +2,7 @@ package co.acta.slackwebhook.service.modal;
 
 import co.acta.slackwebhook.service.modal.interfaces.SlackModalAPI;
 import co.acta.slackwebhook.utils.UtilsModal;
+import co.acta.slackwebhook.vo.DomainInfo;
 import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
@@ -10,7 +11,7 @@ import java.util.Map;
 @Component
 public class ParamMappingBoardContent extends UtilsModal implements SlackModalAPI {
     @Override
-    public Map<?, ?> makeModalFrame() {
+    public Map<?, ?> makeModalFrame(DomainInfo domainInfo) {
         Map<String, Object> inputBlock = new HashMap<>();
         inputBlock.put("type", "input");
         inputBlock.put("block_id", "param_reply_board_content_block");
@@ -19,6 +20,7 @@ public class ParamMappingBoardContent extends UtilsModal implements SlackModalAP
         element.put("type", "plain_text_input");
         element.put("action_id", "input_param_reply_board_content");
         element.put("placeholder", plainText("파라미터 매핑 - 게시글 내용을 입력하세요"));
+        if(domainInfo != null && domainInfo.getParamMappingBoardContent() != null && !domainInfo.getParamMappingBoardContent().isEmpty()) element.put("initial_value", domainInfo.getParamMappingBoardContent());
         inputBlock.put("element", element);
 
         return inputBlock;

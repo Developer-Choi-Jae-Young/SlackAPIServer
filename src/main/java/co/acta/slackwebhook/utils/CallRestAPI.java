@@ -122,7 +122,6 @@ public class CallRestAPI {
     }
 
     private Resource downloadSlackFile(String url, String fileName) {
-        RestTemplate restTemplate = new RestTemplate();
         HttpEntity<?> entity = new HttpEntity<>(HttpHeader.headers);
         ResponseEntity<byte[]> response = restTemplate.exchange(url, HttpMethod.GET, entity, byte[].class);
         byte[] data = response.getBody();

@@ -42,9 +42,10 @@ public class WebHookService {
     private final TextEncryptor textEncryptor;
 
     @Transactional
-    public void sendAPI(AddBoardDto boardDto, String domain, List<MultipartFile> files) {
+    public List<BoardDomainInfo> sendAPI(AddBoardDto boardDto, String domain, List<MultipartFile> files) {
         String parentTs = boardDto.getParentBoardId() != null ? boardRepository.findByBoardId((long) boardDto.getParentBoardId()).map(BoardEntity::getTs).orElse(null) : null;
         List<DomainChannelEntity> domainChannelList = domainChannelRepository.findByDomain_Domain(domain);
+        List<BoardDomainInfo> boardDomainInfoList = new ArrayList<>();
 
         domainChannelList.forEach((data) -> {
             boardDto.setLink(data.getDomain().getViewUrl());
@@ -62,15 +63,18 @@ public class WebHookService {
             });
 
             boardDto.setTs(ts);
-            BoardEntity board = addBoard(boardDto, data);
+            boardDomainInfoList.add(BoardDomainInfo.of(addBoard(boardDto, data)));
         });
+
+        return boardDomainInfoList;
     }
 
     @Transactional
-    public void addDomainChannel(DomainChannelRequest request, String channel) {
+    public DomainInfo addDomainChannel(DomainChannelRequest request, String channel) {
         String encPassword = textEncryptor.encrypt(request.getReplyPw());
         DomainChannelEntity domainChannelEntity = domainChannelRepository.findByChannel(channel).orElse(null);
 
+        DomainEntity destDomain = null;
         if(domainChannelEntity == null) {
             DomainEntity domainEntity = DomainEntity.builder()
                     .domain(request.getHost()).viewUrl(request.getView()).loginUrl(request.getLogin())
@@ -84,23 +88,25 @@ public class WebHookService {
                     .channel(channel)
                     .build();
 
-            DomainEntity savedDomain = domainRepository.save(domainEntity);
+            destDomain = domainRepository.save(domainEntity);
             domainChannelRepository.save(domainChannel);
         } else {
-            DomainEntity domainEntity = domainChannelEntity.getDomain();
-            domainEntity.setDomain(request.getHost());
-            domainEntity.setViewUrl(request.getView());
-            domainEntity.setLoginUrl(request.getLogin());
-            domainEntity.setReplyUrl(request.getReply());
-            domainEntity.setAccountId(request.getReplyId());
-            domainEntity.setAccountPw(encPassword);
-            domainEntity.setParamNameUserId(request.getParamUserId());
-            domainEntity.setParamNameUserPw(request.getParamUserPw());
-            domainEntity.setParamNameBoardId(request.getParamBoardId());
-            domainEntity.setParamNameContent(request.getParamContent());
-            domainEntity.setParamNameRegUsrNm(request.getParamRegUser());
-            domainEntity.setParamNameRegDttm(request.getParamRegDttm());
+            destDomain = domainChannelEntity.getDomain();
+            destDomain.setDomain(request.getHost());
+            destDomain.setViewUrl(request.getView());
+            destDomain.setLoginUrl(request.getLogin());
+            destDomain.setReplyUrl(request.getReply());
+            destDomain.setAccountId(request.getReplyId());
+            destDomain.setAccountPw(encPassword);
+            destDomain.setParamNameUserId(request.getParamUserId());
+            destDomain.setParamNameUserPw(request.getParamUserPw());
+            destDomain.setParamNameBoardId(request.getParamBoardId());
+            destDomain.setParamNameContent(request.getParamContent());
+            destDomain.setParamNameRegUsrNm(request.getParamRegUser());
+            destDomain.setParamNameRegDttm(request.getParamRegDttm());
         }
+
+        return DomainInfo.of(destDomain);
     }
 
     @Transactional
@@ -115,7 +121,7 @@ public class WebHookService {
     }
 
     @Async
-    public void sendReply(String ts, String channel, String text, String user, List<SlackEventRequest.SlackFile> files) {
+    public ResponseEntity<String> sendReply(String ts, String channel, String text, String user, List<SlackEventRequest.SlackFile> files) {
         BoardEntity board = boardRepository.findByTsAndDomainChannel_Channel(ts, channel)
                 .orElseThrow(() -> new RuntimeException("URL을 찾을 수 없습니다."));
 
@@ -129,16 +135,17 @@ public class WebHookService {
                 info.getAccountId(),
                 decryptedPw,
                 LoginType.Session);
-        callRestAPI.reply(info, text, user, httpHeaders, files);
+
+        return callRestAPI.reply(info, text, user, httpHeaders, files);
     }
 
-    public void openModal(String triggerId, String channelId) {
+    public ResponseEntity<Map> openModal(String triggerId, String channelId) {
         DomainChannelEntity domainChannelEntity = domainChannelRepository.findByChannel(channelId).orElse(null);
         DomainEntity domainEntity = domainChannelEntity == null ? null : domainChannelEntity.getDomain();
         if(domainEntity != null) domainEntity.setAccountPw(textEncryptor.decrypt(domainEntity.getAccountPw()));
         DomainInfo domainInfo = DomainInfo.of(domainEntity);
 
-        callRestAPI.openModal(triggerId, channelId, () -> {
+        return callRestAPI.openModal(triggerId, channelId, () -> {
             List<Map<String, Object>> blocks = new ArrayList<>();
 
             for (SlackModalFrame frame : SlackModalFrame.values()) {

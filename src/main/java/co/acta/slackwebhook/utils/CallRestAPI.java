@@ -103,7 +103,7 @@ public class CallRestAPI {
         return strategy.login(loginResponse);
     }
 
-    public void reply(BoardDomainInfo info, String text, String user, HttpHeaders httpHeaders, List<SlackEventRequest.SlackFile> files) {
+    public ResponseEntity<String> reply(BoardDomainInfo info, String text, String user, HttpHeaders httpHeaders, List<SlackEventRequest.SlackFile> files) {
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
         body.add(info.getParamBoardId(), info.getBoardId());
         body.add(info.getParamContent(), text);
@@ -118,12 +118,15 @@ public class CallRestAPI {
             }
         }
 
+        ResponseEntity<String> response = null;
         try {
             HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, httpHeaders);
-            restTemplate.postForEntity(info.getReplyUrl(), requestEntity, String.class);
+            response = restTemplate.postForEntity(info.getReplyUrl(), requestEntity, String.class);
         } catch (RestClientException e) {
             log.error("전송 실패: {}", e.getMessage());
         }
+
+        return response;
     }
 
     private HttpEntity<?> makeDownloadFile(String downloadUrl, String fileName) {
@@ -178,20 +181,23 @@ public class CallRestAPI {
         return messageTs;
     }
 
-    public void openModal(String triggerId, String channelId, SlackSendCallBack slackSendCallBack) {
+    public ResponseEntity<Map> openModal(String triggerId, String channelId, SlackSendCallBack slackSendCallBack) {
         String url = "https://slack.com/api/views.open";
 
         List<Map<String, Object>> blocks = slackSendCallBack.callback();
         Map<String, Object> payload = slackModalLayout.makeLayout(triggerId, channelId, blocks);
+        ResponseEntity<Map> response = null;
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.setBearerAuth(slackToken);
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(payload, headers);
-            ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
+            response = restTemplate.postForEntity(url, entity, Map.class);
             log.info("Slack API Response: {}", response.getBody());
         } catch (Exception e) {
             log.info("모달 오픈 실패: {}", e.getMessage());
         }
+
+        return response;
     }
 }

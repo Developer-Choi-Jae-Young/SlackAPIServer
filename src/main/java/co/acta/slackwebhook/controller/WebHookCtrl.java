@@ -2,6 +2,7 @@ package co.acta.slackwebhook.controller;
 
 import co.acta.slackwebhook.dto.request.AddBoardDto;
 import co.acta.slackwebhook.dto.request.AddWebHookDTO;
+import co.acta.slackwebhook.exception.CustomException;
 import co.acta.slackwebhook.service.WebHookService;
 import co.acta.slackwebhook.utils.UtilsCommon;
 import co.acta.slackwebhook.vo.*;
@@ -25,7 +26,7 @@ public class WebHookCtrl {
     private final WebHookService webHookService;
 
     @PostMapping(value = "/add-domain-channel")
-    public ResponseEntity<?> addDomainChannel(AddWebHookDTO dto) {
+    public ResponseEntity<?> addDomainChannel(AddWebHookDTO dto) throws CustomException {
         ResponseEntity<Map> response = webHookService.openModal(dto.getTrigger_id(), dto.getChannel_id());
 
         boolean isOk = (boolean) response.getBody().get("ok");
@@ -41,7 +42,7 @@ public class WebHookCtrl {
     }
 
     @PostMapping("/event")
-    public ResponseEntity<?> slackCheckEvent(@RequestBody SlackEventRequest request, @RequestHeader(value = "X-Slack-Retry-Num", required = false) Integer retryNum) {
+    public ResponseEntity<?> slackCheckEvent(@RequestBody SlackEventRequest request, @RequestHeader(value = "X-Slack-Retry-Num", required = false) Integer retryNum) throws CustomException {
         if (retryNum != null && retryNum > 0) return ResponseEntity.ok().build();
         if (request.getChallenge() != null) return ResponseEntity.ok(request.getChallenge());
 

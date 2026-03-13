@@ -1,6 +1,8 @@
 package co.acta.slackwebhook.service;
 
 import co.acta.slackwebhook.entity.DomainEntity;
+import co.acta.slackwebhook.exception.CustomException;
+import co.acta.slackwebhook.exception.ExceptionInfo;
 import co.acta.slackwebhook.repository.DomainRepository;
 import co.acta.slackwebhook.service.modal.interfaces.SlackModalAPI;
 import co.acta.slackwebhook.utils.CallRestAPI;
@@ -121,10 +123,9 @@ public class WebHookService {
     }
 
     @Async
-    public ResponseEntity<String> sendReply(String ts, String channel, String text, String user, List<SlackEventRequest.SlackFile> files) {
+    public ResponseEntity<String> sendReply(String ts, String channel, String text, String user, List<SlackEventRequest.SlackFile> files) throws CustomException {
         BoardEntity board = boardRepository.findByTsAndDomainChannel_Channel(ts, channel)
-                .orElseThrow(() -> new RuntimeException("URL을 찾을 수 없습니다."));
-
+                .orElseThrow(() -> new CustomException(ExceptionInfo.BASIC_INFO_NOT_FOUNT));
 
         BoardDomainInfo info = BoardDomainInfo.of(board);
         String decryptedPw = textEncryptor.decrypt(info.getAccountPw());
@@ -139,7 +140,7 @@ public class WebHookService {
         return callRestAPI.reply(info, text, user, httpHeaders, files);
     }
 
-    public ResponseEntity<Map> openModal(String triggerId, String channelId) {
+    public ResponseEntity<Map> openModal(String triggerId, String channelId) throws CustomException {
         DomainChannelEntity domainChannelEntity = domainChannelRepository.findByChannel(channelId).orElse(null);
         DomainEntity domainEntity = domainChannelEntity == null ? null : domainChannelEntity.getDomain();
         if(domainEntity != null) domainEntity.setAccountPw(textEncryptor.decrypt(domainEntity.getAccountPw()));

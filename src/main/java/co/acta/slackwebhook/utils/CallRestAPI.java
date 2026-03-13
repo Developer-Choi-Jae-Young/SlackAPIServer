@@ -1,6 +1,8 @@
 package co.acta.slackwebhook.utils;
 
 import co.acta.slackwebhook.dto.request.AddBoardDto;
+import co.acta.slackwebhook.exception.CustomException;
+import co.acta.slackwebhook.exception.ExceptionInfo;
 import co.acta.slackwebhook.service.message.SlackMessageLayout;
 import co.acta.slackwebhook.service.modal.SlackModalLayout;
 import co.acta.slackwebhook.utils.auth.interfaces.Authenticate;
@@ -92,18 +94,24 @@ public class CallRestAPI {
         return filesInfo;
     }
 
-    public HttpHeaders login(String url, String paramId, String paramPw, String id, String pw, LoginType loginType) {
+    public HttpHeaders login(String url, String paramId, String paramPw, String id, String pw, LoginType loginType) throws CustomException {
         MultiValueMap<String, String> loginParams = new LinkedMultiValueMap<>();
         loginParams.add(paramId, id);
         loginParams.add(paramPw, pw);
-        ResponseEntity<String> loginResponse = restTemplate.postForEntity(url, loginParams, String.class);
+
+        ResponseEntity<String> loginResponse = null;
+        try {
+            loginResponse = restTemplate.postForEntity(url, loginParams, String.class);
+        } catch (Exception e) {
+            throw new CustomException(ExceptionInfo.LOGIN_FAIL);
+        }
 
         Authenticate strategy = authenticate.stream().filter(auth -> auth.supports(loginType)).findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("지원하지 않는 로그인 타입입니다."));
+                .orElseThrow(() -> new CustomException(ExceptionInfo.NOT_SUPPORT_LOGIN_TYPE));
         return strategy.login(loginResponse);
     }
 
-    public ResponseEntity<String> reply(BoardDomainInfo info, String text, String user, HttpHeaders httpHeaders, List<SlackEventRequest.SlackFile> files) {
+    public ResponseEntity<String> reply(BoardDomainInfo info, String text, String user, HttpHeaders httpHeaders, List<SlackEventRequest.SlackFile> files) throws CustomException {
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
         body.add(info.getParamBoardId(), info.getBoardId());
         body.add(info.getParamContent(), text);
@@ -124,12 +132,13 @@ public class CallRestAPI {
             response = restTemplate.postForEntity(info.getReplyUrl(), requestEntity, String.class);
         } catch (RestClientException e) {
             log.error("전송 실패: {}", e.getMessage());
+            throw new CustomException(ExceptionInfo.REPLY_FAIL);
         }
 
         return response;
     }
 
-    private HttpEntity<?> makeDownloadFile(String downloadUrl, String fileName) {
+    private HttpEntity<?> makeDownloadFile(String downloadUrl, String fileName) throws CustomException {
         Resource fileResource = downloadSlackFile(downloadUrl, fileName);
         HttpHeaders fileHeaders = new HttpHeaders();
         fileHeaders.setContentDispositionFormData("file", fileName);
@@ -137,12 +146,17 @@ public class CallRestAPI {
         return new HttpEntity<>(fileResource, fileHeaders);
     }
 
-    private Resource downloadSlackFile(String url, String fileName) {
+    private Resource downloadSlackFile(String url, String fileName) throws CustomException {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setBearerAuth(slackToken);
         HttpEntity<?> entity = new HttpEntity<>(headers);
-        ResponseEntity<byte[]> response = restTemplate.exchange(url, HttpMethod.GET, entity, byte[].class);
+        ResponseEntity<byte[]> response = null;
+        try {
+            response = restTemplate.exchange(url, HttpMethod.GET, entity, byte[].class);
+        } catch (Exception e) {
+            throw new CustomException(ExceptionInfo.REPLY_FILE_DOWNLOAD_ERROR);
+        }
         byte[] data = response.getBody();
 
         return new ByteArrayResource(data) {
@@ -181,7 +195,7 @@ public class CallRestAPI {
         return messageTs;
     }
 
-    public ResponseEntity<Map> openModal(String triggerId, String channelId, SlackSendCallBack slackSendCallBack) {
+    public ResponseEntity<Map> openModal(String triggerId, String channelId, SlackSendCallBack slackSendCallBack) throws CustomException {
         String url = "https://slack.com/api/views.open";
 
         List<Map<String, Object>> blocks = slackSendCallBack.callback();
@@ -196,6 +210,7 @@ public class CallRestAPI {
             log.info("Slack API Response: {}", response.getBody());
         } catch (Exception e) {
             log.info("모달 오픈 실패: {}", e.getMessage());
+            throw new CustomException(ExceptionInfo.MODAL_OPEN_FAILL);
         }
 
         return response;

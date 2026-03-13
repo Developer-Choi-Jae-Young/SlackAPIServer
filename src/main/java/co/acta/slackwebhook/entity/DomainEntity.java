@@ -1,5 +1,6 @@
 package co.acta.slackwebhook.entity;
 
+import co.acta.slackwebhook.vo.DomainChannelRequest;
 import lombok.*;
 
 import javax.persistence.*;
@@ -7,7 +8,6 @@ import javax.persistence.*;
 @Entity
 @Builder
 @Getter
-@Setter
 @AllArgsConstructor
 @NoArgsConstructor
 public class DomainEntity {
@@ -25,4 +25,23 @@ public class DomainEntity {
     private String paramNameContent;
     private String paramNameRegUsrNm;
     private String paramNameRegDttm;
+
+    public void update(DomainChannelRequest request, String encryptedPassword) {
+        this.domain          = request.getHost();
+        this.viewUrl         = request.getView();
+        this.loginUrl        = request.getLogin();
+        this.replyUrl        = request.getReply();
+        this.accountId       = request.getReplyId();
+        this.accountPw       = encryptedPassword;
+        this.paramNameUserId = request.getParamUserId();
+        this.paramNameUserPw = request.getParamUserPw();
+        this.paramNameBoardId   = request.getParamBoardId();
+        this.paramNameContent   = request.getParamContent();
+        this.paramNameRegUsrNm  = request.getParamRegUser();
+        this.paramNameRegDttm   = request.getParamRegDttm();
+    }
+
+    public void maskDecryptedPassword(String decryptedPw) {
+        this.accountPw = decryptedPw;
+    }
 }

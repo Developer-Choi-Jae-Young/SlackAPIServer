@@ -72,43 +72,40 @@ public class WebHookService {
     }
 
     @Transactional
-    public DomainInfo addDomainChannel(DomainChannelRequest request, String channel) {
+    public DomainInfo addDomainChannel(DomainChannelRequest request, String channel) throws CustomException {
         String encPassword = textEncryptor.encrypt(request.getReplyPw());
         DomainChannelEntity domainChannelEntity = domainChannelRepository.findByChannel(channel).orElse(null);
 
-        DomainEntity destDomain = null;
-        if(domainChannelEntity == null) {
-            DomainEntity domainEntity = DomainEntity.builder()
-                    .domain(request.getHost()).viewUrl(request.getView()).loginUrl(request.getLogin())
-                    .replyUrl(request.getReply()).accountId(request.getReplyId()).accountPw(encPassword)
-                    .paramNameUserId(request.getParamUserId()).paramNameUserPw(request.getParamUserPw())
-                    .paramNameBoardId(request.getParamBoardId()).paramNameContent(request.getParamContent())
-                    .paramNameRegUsrNm(request.getParamRegUser()).paramNameRegDttm(request.getParamRegDttm()).build();
+        try {
+            DomainEntity destDomain;
+            if (domainChannelEntity == null) {
+                DomainEntity domainEntity = DomainEntity.builder()
+                        .domain(request.getHost()).viewUrl(request.getView()).loginUrl(request.getLogin())
+                        .replyUrl(request.getReply()).accountId(request.getReplyId()).accountPw(encPassword)
+                        .paramNameUserId(request.getParamUserId()).paramNameUserPw(request.getParamUserPw())
+                        .paramNameBoardId(request.getParamBoardId()).paramNameContent(request.getParamContent())
+                        .paramNameRegUsrNm(request.getParamRegUser()).paramNameRegDttm(request.getParamRegDttm()).build();
 
-            DomainChannelEntity domainChannel = DomainChannelEntity.builder()
-                    .domain(domainEntity)
-                    .channel(channel)
-                    .build();
+                DomainChannelEntity domainChannel = DomainChannelEntity.builder()
+                        .domain(domainEntity)
+                        .channel(channel)
+                        .build();
 
-            destDomain = domainRepository.save(domainEntity);
-            domainChannelRepository.save(domainChannel);
-        } else {
-            destDomain = domainChannelEntity.getDomain();
-            destDomain.setDomain(request.getHost());
-            destDomain.setViewUrl(request.getView());
-            destDomain.setLoginUrl(request.getLogin());
-            destDomain.setReplyUrl(request.getReply());
-            destDomain.setAccountId(request.getReplyId());
-            destDomain.setAccountPw(encPassword);
-            destDomain.setParamNameUserId(request.getParamUserId());
-            destDomain.setParamNameUserPw(request.getParamUserPw());
-            destDomain.setParamNameBoardId(request.getParamBoardId());
-            destDomain.setParamNameContent(request.getParamContent());
-            destDomain.setParamNameRegUsrNm(request.getParamRegUser());
-            destDomain.setParamNameRegDttm(request.getParamRegDttm());
+                destDomain = domainRepository.save(domainEntity);
+                domainChannelRepository.save(domainChannel);
+                log.info("[addDomainChannel] 신규 도메인 채널 등록 완료. channel={}, domain={}", channel, request.getHost());
+            } else {
+                destDomain = domainChannelEntity.getDomain();
+                destDomain.update(request, encPassword);
+                log.info("[addDomainChannel] 도메인 채널 정보 업데이트 완료. channel={}, domain={}", channel, request.getHost());
+            }
+
+            return DomainInfo.of(destDomain);
+
+        } catch (Exception e) {
+            log.error("[addDomainChannel] 도메인 채널 저장 실패. channel={}, error={}", channel, e.getMessage(), e);
+            throw new CustomException(ExceptionInfo.DOMAIN_CHANNEL_SAVE_ERROR);
         }
-
-        return DomainInfo.of(destDomain);
     }
 
     @Transactional
@@ -123,27 +120,33 @@ public class WebHookService {
     }
 
     @Async
-    public ResponseEntity<String> sendReply(String ts, String channel, String text, String user, List<SlackEventRequest.SlackFile> files) throws CustomException {
-        BoardEntity board = boardRepository.findByTsAndDomainChannel_Channel(ts, channel)
-                .orElseThrow(() -> new CustomException(ExceptionInfo.BASIC_INFO_NOT_FOUNT));
+    public void sendReply(String ts, String channel, String text, String user, List<SlackEventRequest.SlackFile> files) {
+        try {
+            BoardEntity board = boardRepository.findByTsAndDomainChannel_Channel(ts, channel)
+                    .orElseThrow(() -> new CustomException(ExceptionInfo.BASIC_INFO_NOT_FOUND));
 
-        BoardDomainInfo info = BoardDomainInfo.of(board);
-        String decryptedPw = textEncryptor.decrypt(info.getAccountPw());
+            BoardDomainInfo info = BoardDomainInfo.of(board);
+            String decryptedPw = textEncryptor.decrypt(info.getAccountPw());
 
-        HttpHeaders httpHeaders = callRestAPI.login(info.getLoginUrl(),
-                info.getParamUserId(),
-                info.getParamUserPw(),
-                info.getAccountId(),
-                decryptedPw,
-                LoginType.Session);
+            HttpHeaders httpHeaders = callRestAPI.login(info.getLoginUrl(),
+                    info.getParamUserId(),
+                    info.getParamUserPw(),
+                    info.getAccountId(),
+                    decryptedPw,
+                    LoginType.Session);
 
-        return callRestAPI.reply(info, text, user, httpHeaders, files);
+            callRestAPI.reply(info, text, user, httpHeaders, files);
+        } catch (CustomException e) {
+            log.error("[sendReply] 처리 실패: code={}, message={}", e.getExceptionInfo().getErrorCode(), e.getMessage());
+        } catch (Exception e) {
+            log.error("[sendReply] 예상치 못한 오류 발생: {}", e.getMessage(), e);
+        }
     }
 
-    public ResponseEntity<Map> openModal(String triggerId, String channelId) throws CustomException {
+    public ResponseEntity<Map<String, Object>> openModal(String triggerId, String channelId) throws CustomException {
         DomainChannelEntity domainChannelEntity = domainChannelRepository.findByChannel(channelId).orElse(null);
         DomainEntity domainEntity = domainChannelEntity == null ? null : domainChannelEntity.getDomain();
-        if(domainEntity != null) domainEntity.setAccountPw(textEncryptor.decrypt(domainEntity.getAccountPw()));
+        if(domainEntity != null) domainEntity.maskDecryptedPassword(textEncryptor.decrypt(domainEntity.getAccountPw()));
         DomainInfo domainInfo = DomainInfo.of(domainEntity);
 
         return callRestAPI.openModal(triggerId, channelId, () -> {

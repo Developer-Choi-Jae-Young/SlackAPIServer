@@ -27,9 +27,8 @@ public class WebHookCtrl {
 
     @PostMapping(value = "/add-domain-channel")
     public ResponseEntity<?> addDomainChannel(AddWebHookDTO dto) throws CustomException {
-        ResponseEntity<Map> response = webHookService.openModal(dto.getTrigger_id(), dto.getChannel_id());
-
-        boolean isOk = (boolean) response.getBody().get("ok");
+        ResponseEntity<Map<String, Object>> response = webHookService.openModal(dto.getTrigger_id(), dto.getChannel_id());
+        boolean isOk = response.getBody() != null && Boolean.TRUE.equals(response.getBody().get("ok"));
         log.info("Slack Open PopUp Result: {}", isOk);
         return ResponseEntity.ok().build();
     }
@@ -42,16 +41,15 @@ public class WebHookCtrl {
     }
 
     @PostMapping("/event")
-    public ResponseEntity<?> slackCheckEvent(@RequestBody SlackEventRequest request, @RequestHeader(value = "X-Slack-Retry-Num", required = false) Integer retryNum) throws CustomException {
+    public ResponseEntity<?> slackCheckEvent(@RequestBody SlackEventRequest request, @RequestHeader(value = "X-Slack-Retry-Num", required = false) Integer retryNum) {
         if (retryNum != null && retryNum > 0) return ResponseEntity.ok().build();
         if (request.getChallenge() != null) return ResponseEntity.ok(request.getChallenge());
 
         SlackEventRequest.EventDetail event = request.getEvent();
         if (event == null) return ResponseEntity.ok().build();
 
-        ResponseEntity<String> response = null;
         if (event.isUserReplyMessage()) {
-            response = webHookService.sendReply(
+            webHookService.sendReply(
                     event.getThreadTs(),
                     event.getChannel(),
                     event.getText(),
@@ -60,13 +58,18 @@ public class WebHookCtrl {
             );
         }
 
-        return ResponseEntity.ok().body(response != null ? response.getBody() : null);
+        return ResponseEntity.ok().build();
     }
 
     @PostMapping(value = "/interactivity", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
-    public ResponseEntity<?> interactivity(@RequestParam("payload") String payloadString) throws Exception {
-        ObjectMapper objectMapper = new ObjectMapper();
-        SlackPayload payload = objectMapper.readValue(payloadString, SlackPayload.class);
+    public ResponseEntity<?> interactivity(@RequestParam("payload") String payloadString) throws CustomException {
+        SlackPayload payload;
+        try {
+            payload = new ObjectMapper().readValue(payloadString, SlackPayload.class);
+        } catch (Exception e) {
+            log.error("[interactivity] payload 파싱 실패: {}", e.getMessage());
+            return ResponseEntity.badRequest().body("잘못된 payload 형식입니다.");
+        }
 
         DomainInfo domainInfo = null;
         if ("view_submission".equals(payload.getType())) {

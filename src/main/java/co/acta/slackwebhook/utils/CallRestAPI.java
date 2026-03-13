@@ -41,9 +41,7 @@ public class CallRestAPI {
     @Value("${slack.token}")
     private String slackToken;
 
-    public Map<String, String> filesGetUploadURLExternal(MultipartFile mfile) {
-        Map<String, String> fileMap = new HashMap<>();
-
+    public Map<String, String> filesGetUploadURLExternal(MultipartFile mfile) throws CustomException {
         try {
             String getUrl = "https://slack.com/api/files.getUploadURLExternal"
                     + "?filename=" + URLEncoder.encode(Objects.requireNonNull(mfile.getOriginalFilename()), StandardCharsets.UTF_8.name())
@@ -52,46 +50,63 @@ public class CallRestAPI {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.setBearerAuth(slackToken);
-            ResponseEntity<Map> urlRes = restTemplate.exchange(getUrl, HttpMethod.GET, new HttpEntity<>(headers), Map.class);
-            Map urlBody = urlRes.getBody();
 
-            if (urlBody != null && (boolean) urlBody.get("ok")) {
-                String uploadUrl = (String) urlBody.get("upload_url");
-                String fileId = (String) urlBody.get("file_id");
+            ResponseEntity<Map<String, Object>> urlRes = restTemplate.exchange(
+                    getUrl, HttpMethod.GET, new HttpEntity<>(headers), getMapType());
+            Map<String, Object> urlBody = urlRes.getBody();
 
-                HttpHeaders binaryHeaders = new HttpHeaders();
-                binaryHeaders.setContentType(MediaType.APPLICATION_OCTET_STREAM);
-
-                HttpEntity<byte[]> binaryRequest = new HttpEntity<>(mfile.getBytes(), binaryHeaders);
-                restTemplate.postForEntity(uploadUrl, binaryRequest, String.class);
-                fileMap.put("id", fileId);
+            if (urlBody == null || !Boolean.TRUE.equals(urlBody.get("ok"))) {
+                log.error("[filesGetUploadURLExternal] Slack API 실패 응답: {}", urlBody);
+                throw new CustomException(ExceptionInfo.FILE_UPLOAD_URL_ERROR);
             }
-        } catch (Exception e) {
-            log.error("파일 전송 중 오류 발생: " + mfile.getOriginalFilename(), e);
-        }
 
-        return fileMap;
+            String uploadUrl = (String) urlBody.get("upload_url");
+            String fileId = (String) urlBody.get("file_id");
+
+            HttpHeaders binaryHeaders = new HttpHeaders();
+            binaryHeaders.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+            restTemplate.postForEntity(uploadUrl, new HttpEntity<>(mfile.getBytes(), binaryHeaders), String.class);
+
+            Map<String, String> fileMap = new HashMap<>();
+            fileMap.put("id", fileId);
+            return fileMap;
+
+        } catch (CustomException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("[filesGetUploadURLExternal] 파일 업로드 URL 발급 중 오류: {}", mfile.getOriginalFilename(), e);
+            throw new CustomException(ExceptionInfo.FILE_UPLOAD_URL_ERROR);
+        }
     }
 
-    public List<Map<String, Object>> filesCompleteUploadExternal(List<Map<String, String>> uploadedFiles, String channelId) {
-        List<Map<String, Object>> filesInfo = new ArrayList<>();
+    public List<Map<String, Object>> filesCompleteUploadExternal(List<Map<String, String>> uploadedFiles, String channelId) throws CustomException {
+        try {
+            String completeUrl = "https://slack.com/api/files.completeUploadExternal";
+            Map<String, Object> completeBody = new HashMap<>();
+            completeBody.put("files", uploadedFiles);
+            completeBody.put("channel_id", channelId);
 
-        String completeUrl = "https://slack.com/api/files.completeUploadExternal";
-        Map<String, Object> completeBody = new HashMap<>();
-        completeBody.put("files", uploadedFiles);
-        completeBody.put("channel_id", channelId);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setBearerAuth(slackToken);
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setBearerAuth(slackToken);
-        ResponseEntity<Map> completeRes = restTemplate.postForEntity(completeUrl, new HttpEntity<>(completeBody, headers), Map.class);
-        Map completeResBody = completeRes.getBody();
+            ResponseEntity<Map<String, Object>> completeRes = restTemplate.postForEntity(
+                    completeUrl, new HttpEntity<>(completeBody, headers), getMapType());
+            Map<String, Object> completeResBody = completeRes.getBody();
 
-        if (completeResBody != null && (boolean) completeResBody.get("ok")) {
-            filesInfo = (List<Map<String, Object>>) completeResBody.get("files");
+            if (completeResBody == null || !Boolean.TRUE.equals(completeResBody.get("ok"))) {
+                log.error("[filesCompleteUploadExternal] Slack API 실패 응답: {}", completeResBody);
+                throw new CustomException(ExceptionInfo.FILE_UPLOAD_COMPLETE_ERROR);
+            }
+
+            return (List<Map<String, Object>>) completeResBody.get("files");
+
+        } catch (CustomException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("[filesCompleteUploadExternal] 파일 업로드 완료 처리 중 오류: {}", e.getMessage(), e);
+            throw new CustomException(ExceptionInfo.FILE_UPLOAD_COMPLETE_ERROR);
         }
-
-        return filesInfo;
     }
 
     public HttpHeaders login(String url, String paramId, String paramPw, String id, String pw, LoginType loginType) throws CustomException {
@@ -99,15 +114,19 @@ public class CallRestAPI {
         loginParams.add(paramId, id);
         loginParams.add(paramPw, pw);
 
-        ResponseEntity<String> loginResponse = null;
+        ResponseEntity<String> loginResponse;
         try {
             loginResponse = restTemplate.postForEntity(url, loginParams, String.class);
         } catch (Exception e) {
+            log.error("[login] 로그인 요청 실패: {}", e.getMessage());
             throw new CustomException(ExceptionInfo.LOGIN_FAIL);
         }
 
-        Authenticate strategy = authenticate.stream().filter(auth -> auth.supports(loginType)).findFirst()
+        Authenticate strategy = authenticate.stream()
+                .filter(auth -> auth.supports(loginType))
+                .findFirst()
                 .orElseThrow(() -> new CustomException(ExceptionInfo.NOT_SUPPORT_LOGIN_TYPE));
+
         return strategy.login(loginResponse);
     }
 
@@ -126,16 +145,13 @@ public class CallRestAPI {
             }
         }
 
-        ResponseEntity<String> response = null;
         try {
             HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, httpHeaders);
-            response = restTemplate.postForEntity(info.getReplyUrl(), requestEntity, String.class);
+            return restTemplate.postForEntity(info.getReplyUrl(), requestEntity, String.class);
         } catch (RestClientException e) {
-            log.error("전송 실패: {}", e.getMessage());
+            log.error("[reply] 전송 실패: {}", e.getMessage());
             throw new CustomException(ExceptionInfo.REPLY_FAIL);
         }
-
-        return response;
     }
 
     private HttpEntity<?> makeDownloadFile(String downloadUrl, String fileName) throws CustomException {
@@ -150,30 +166,24 @@ public class CallRestAPI {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setBearerAuth(slackToken);
-        HttpEntity<?> entity = new HttpEntity<>(headers);
-        ResponseEntity<byte[]> response = null;
+
+        ResponseEntity<byte[]> response;
         try {
-            response = restTemplate.exchange(url, HttpMethod.GET, entity, byte[].class);
+            response = restTemplate.exchange(url, HttpMethod.GET, new HttpEntity<>(headers), byte[].class);
         } catch (Exception e) {
+            log.error("[downloadSlackFile] 파일 다운로드 실패: {}", fileName);
             throw new CustomException(ExceptionInfo.REPLY_FILE_DOWNLOAD_ERROR);
         }
-        byte[] data = response.getBody();
+
+        byte[] data = Objects.requireNonNull(response.getBody(), "Slack 파일 다운로드 응답이 비어있습니다.");
 
         return new ByteArrayResource(data) {
-            @Override
-            public String getFilename() {
-                return fileName;
-            }
-
-            @Override
-            public long contentLength() {
-                return data.length;
-            }
+            @Override public String getFilename() { return fileName; }
+            @Override public long contentLength() { return data.length; }
         };
     }
 
     public String sendMessage(AddBoardDto boardDto, String channelId, String parentTs, SlackSendCallBack slackSendCallBack) {
-        String messageTs = "";
         String url = "https://slack.com/api/chat.postMessage";
 
         List<Map<String, Object>> blocks = slackSendCallBack.callback();
@@ -182,37 +192,43 @@ public class CallRestAPI {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setBearerAuth(slackToken);
-        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
-        ResponseEntity<Map> res = restTemplate.postForEntity(url, request, Map.class);
 
-        Map responseBody = res.getBody();
+        ResponseEntity<Map<String, Object>> res = restTemplate.postForEntity(
+                url, new HttpEntity<>(body, headers), getMapType());
+        Map<String, Object> responseBody = res.getBody();
+
         if (responseBody != null && Boolean.TRUE.equals(responseBody.get("ok"))) {
-            messageTs = (String) responseBody.get("ts");
+            return (String) responseBody.get("ts");
         } else {
-            log.error("슬랙 메시지 전송 실패: {}", responseBody);
+            log.error("[sendMessage] 슬랙 메시지 전송 실패: {}", responseBody);
+            return "";
         }
-
-        return messageTs;
     }
 
-    public ResponseEntity<Map> openModal(String triggerId, String channelId, SlackSendCallBack slackSendCallBack) throws CustomException {
+    public ResponseEntity<Map<String, Object>> openModal(String triggerId, String channelId, SlackSendCallBack slackSendCallBack) throws CustomException {
         String url = "https://slack.com/api/views.open";
 
         List<Map<String, Object>> blocks = slackSendCallBack.callback();
         Map<String, Object> payload = slackModalLayout.makeLayout(triggerId, channelId, blocks);
-        ResponseEntity<Map> response = null;
+
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.setBearerAuth(slackToken);
-            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(payload, headers);
-            response = restTemplate.postForEntity(url, entity, Map.class);
-            log.info("Slack API Response: {}", response.getBody());
-        } catch (Exception e) {
-            log.info("모달 오픈 실패: {}", e.getMessage());
-            throw new CustomException(ExceptionInfo.MODAL_OPEN_FAILL);
-        }
 
-        return response;
+            ResponseEntity<Map<String, Object>> response = restTemplate.postForEntity(
+                    url, new HttpEntity<>(payload, headers), getMapType());
+            log.info("[openModal] Slack API Response: {}", response.getBody());
+            return response;
+        } catch (Exception e) {
+            log.error("[openModal] 모달 오픈 실패: {}", e.getMessage());
+            throw new CustomException(ExceptionInfo.MODAL_OPEN_FAIL);
+        }
+    }
+
+    /** RestTemplate의 Raw Type 경고를 한 곳에서 관리하기 위한 헬퍼 */
+    @SuppressWarnings("unchecked")
+    private Class<Map<String, Object>> getMapType() {
+        return (Class<Map<String, Object>>) (Class<?>) Map.class;
     }
 }

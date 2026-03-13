@@ -17,7 +17,6 @@ public class CachedBodyHttpServletRequest extends HttpServletRequestWrapper {
 
     public CachedBodyHttpServletRequest(HttpServletRequest request) throws IOException {
         super(request);
-        // Java 8 호환: readAllBytes() 대신 ByteArrayOutputStream으로 직접 읽기
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         InputStream inputStream = request.getInputStream();
         byte[] chunk = new byte[4096];

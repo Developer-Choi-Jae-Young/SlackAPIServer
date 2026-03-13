@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 @AllArgsConstructor
 public enum ExceptionInfo {
     SEND_MESSAGE_ERROR(100, "게시글 알림에 실패하였습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
+    SLACK_MESSAGE_SEND_FAIL(111, "[슬랙] - 메시지 전송에 실패하였습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
     BASIC_INFO_NOT_FOUND(101, "기본정보를 찾을수 없습니다.", HttpStatus.NOT_FOUND),
     NOT_SUPPORT_LOGIN_TYPE(102, "지원하지 않는 로그인 타입입니다.", HttpStatus.BAD_REQUEST),
     LOGIN_FAIL(103, "로그인에 실패하였습니다.", HttpStatus.UNAUTHORIZED),

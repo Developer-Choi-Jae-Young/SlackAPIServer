@@ -93,7 +93,6 @@ public class SlackSignatureVerificationFilter extends OncePerRequestFilter {
             mac.init(keySpec);
             byte[] hash = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
 
-            // Java 8 호환: byte[] -> hex 문자열 변환
             StringBuilder sb = new StringBuilder();
             for (byte b : hash) {
                 sb.append(String.format("%02x", b));

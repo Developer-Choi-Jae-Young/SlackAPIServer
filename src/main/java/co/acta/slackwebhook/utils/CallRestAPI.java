@@ -183,7 +183,7 @@ public class CallRestAPI {
         };
     }
 
-    public String sendMessage(AddBoardDto boardDto, String channelId, String parentTs, SlackSendCallBack slackSendCallBack) {
+    public String sendMessage(AddBoardDto boardDto, String channelId, String parentTs, SlackSendCallBack slackSendCallBack) throws CustomException {
         String url = "https://slack.com/api/chat.postMessage";
 
         List<Map<String, Object>> blocks = slackSendCallBack.callback();
@@ -193,15 +193,23 @@ public class CallRestAPI {
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setBearerAuth(slackToken);
 
-        ResponseEntity<Map<String, Object>> res = restTemplate.postForEntity(
-                url, new HttpEntity<>(body, headers), getMapType());
-        Map<String, Object> responseBody = res.getBody();
+        try {
+            ResponseEntity<Map<String, Object>> res = restTemplate.postForEntity(
+                    url, new HttpEntity<>(body, headers), getMapType());
+            Map<String, Object> responseBody = res.getBody();
 
-        if (responseBody != null && Boolean.TRUE.equals(responseBody.get("ok"))) {
-            return (String) responseBody.get("ts");
-        } else {
-            log.error("[sendMessage] 슬랙 메시지 전송 실패: {}", responseBody);
-            return "";
+            if (responseBody != null && Boolean.TRUE.equals(responseBody.get("ok"))) {
+                return (String) responseBody.get("ts");
+            }
+
+            log.error("[sendMessage] Slack API 실패 응답: {}", responseBody);
+            throw new CustomException(ExceptionInfo.SLACK_MESSAGE_SEND_FAIL);
+
+        } catch (CustomException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("[sendMessage] 메시지 전송 중 오류: {}", e.getMessage(), e);
+            throw new CustomException(ExceptionInfo.SLACK_MESSAGE_SEND_FAIL);
         }
     }
 
@@ -226,7 +234,6 @@ public class CallRestAPI {
         }
     }
 
-    /** RestTemplate의 Raw Type 경고를 한 곳에서 관리하기 위한 헬퍼 */
     @SuppressWarnings("unchecked")
     private Class<Map<String, Object>> getMapType() {
         return (Class<Map<String, Object>>) (Class<?>) Map.class;

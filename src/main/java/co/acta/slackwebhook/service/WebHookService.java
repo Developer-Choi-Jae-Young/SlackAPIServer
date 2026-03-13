@@ -45,28 +45,37 @@ public class WebHookService {
 
     @Transactional
     public List<BoardDomainInfo> sendAPI(AddBoardDto boardDto, String domain, List<MultipartFile> files) {
-        String parentTs = boardDto.getParentBoardId() != null ? boardRepository.findByBoardId((long) boardDto.getParentBoardId()).map(BoardEntity::getTs).orElse(null) : null;
+        String parentTs = boardDto.getParentBoardId() != null
+                ? boardRepository.findByBoardId((long) boardDto.getParentBoardId()).map(BoardEntity::getTs).orElse(null)
+                : null;
+
         List<DomainChannelEntity> domainChannelList = domainChannelRepository.findByDomain_Domain(domain);
         List<BoardDomainInfo> boardDomainInfoList = new ArrayList<>();
 
-        domainChannelList.forEach((data) -> {
+        for (DomainChannelEntity data : domainChannelList) {
             boardDto.setLink(data.getDomain().getViewUrl());
-            String ts = callRestAPI.sendMessage(boardDto, data.getChannel(), parentTs, () -> {
-                List<Map<String, Object>> blocks = new ArrayList<>();
 
-                for (SlackMessageFrame frame : SlackMessageFrame.values()) {
-                    UtilsCommon.findMessageBean(slackMessageAPIList, frame.getServiceClass()).ifPresent(service -> {
-                        Map<String, Object> result = (Map<String, Object>) service.makeMessageFrame(boardDto, files, data.getChannel());
-                        if (result != null && !result.isEmpty()) blocks.add(result);
-                    });
-                }
-
-                return blocks;
-            });
+            String ts;
+            try {
+                ts = callRestAPI.sendMessage(boardDto, data.getChannel(), parentTs, () -> {
+                    List<Map<String, Object>> blocks = new ArrayList<>();
+                    for (SlackMessageFrame frame : SlackMessageFrame.values()) {
+                        UtilsCommon.findMessageBean(slackMessageAPIList, frame.getServiceClass()).ifPresent(service -> {
+                            Map<String, Object> result = (Map<String, Object>) service.makeMessageFrame(boardDto, files, data.getChannel());
+                            if (result != null && !result.isEmpty()) blocks.add(result);
+                        });
+                    }
+                    return blocks;
+                });
+            } catch (CustomException e) {
+                log.error("[sendAPI] 채널={} 메시지 전송 실패, DB 저장 건너뜀. code={}, message={}",
+                        data.getChannel(), e.getExceptionInfo().getErrorCode(), e.getMessage());
+                continue;
+            }
 
             boardDto.setTs(ts);
             boardDomainInfoList.add(BoardDomainInfo.of(addBoard(boardDto, data)));
-        });
+        }
 
         return boardDomainInfoList;
     }

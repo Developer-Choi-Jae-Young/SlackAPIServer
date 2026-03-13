@@ -234,6 +234,65 @@ public class CallRestAPI {
         }
     }
 
+    public String updateMessage(String channelId, String ts, String newText) throws CustomException {
+        String url = "https://slack.com/api/chat.update";
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("channel", channelId);
+        body.put("ts", ts);
+        body.put("text", newText);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(slackToken);
+
+        try {
+            ResponseEntity<Map<String, Object>> res = restTemplate.postForEntity(
+                    url, new HttpEntity<>(body, headers), getMapType());
+            Map<String, Object> responseBody = res.getBody();
+
+            if (responseBody == null || !Boolean.TRUE.equals(responseBody.get("ok"))) {
+                log.error("[updateMessage] 슬랙 메시지 수정 실패: {}", responseBody);
+                throw new CustomException(ExceptionInfo.SLACK_MESSAGE_UPDATE_FAIL);
+            }
+
+            return (String) responseBody.get("ts"); // 수정된 메시지 ts 반환
+        } catch (CustomException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("[updateMessage] 메시지 수정 중 오류: {}", e.getMessage(), e);
+            throw new CustomException(ExceptionInfo.SLACK_MESSAGE_UPDATE_FAIL);
+        }
+    }
+
+    public void deleteMessage(String channelId, String ts) throws CustomException {
+        String url = "https://slack.com/api/chat.delete";
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("channel", channelId);
+        body.put("ts", ts);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(slackToken);
+
+        try {
+            ResponseEntity<Map<String, Object>> res = restTemplate.postForEntity(
+                    url, new HttpEntity<>(body, headers), getMapType());
+            Map<String, Object> responseBody = res.getBody();
+
+            if (responseBody == null || !Boolean.TRUE.equals(responseBody.get("ok"))) {
+                log.error("[deleteMessage] 슬랙 메시지 삭제 실패: {}", responseBody);
+                throw new CustomException(ExceptionInfo.SLACK_MESSAGE_DELETE_FAIL);
+            }
+        } catch (CustomException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("[deleteMessage] 메시지 삭제 중 오류: {}", e.getMessage(), e);
+            throw new CustomException(ExceptionInfo.SLACK_MESSAGE_DELETE_FAIL);
+        }
+    }
+
     @SuppressWarnings("unchecked")
     private Class<Map<String, Object>> getMapType() {
         return (Class<Map<String, Object>>) (Class<?>) Map.class;

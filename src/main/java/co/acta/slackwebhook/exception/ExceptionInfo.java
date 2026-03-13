@@ -18,7 +18,9 @@ public enum ExceptionInfo {
     REPLY_FAIL(105, "[답변] - 작성에 실패하였습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
     MODAL_OPEN_FAIL(106, "[모달] - 열기에 실패하였습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
     INVALID_SLACK_SIGNATURE(107, "유효하지 않은 Slack 요청입니다.", HttpStatus.UNAUTHORIZED),
-    DOMAIN_CHANNEL_SAVE_ERROR(110, "도메인 채널 저장에 실패하였습니다.", HttpStatus.INTERNAL_SERVER_ERROR);
+    DOMAIN_CHANNEL_SAVE_ERROR(110, "도메인 채널 저장에 실패하였습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
+    SLACK_MESSAGE_UPDATE_FAIL(112, "[슬랙] - 메시지 수정에 실패하였습니다.", HttpStatus.INTERNAL_SERVER_ERROR),
+    SLACK_MESSAGE_DELETE_FAIL(113, "[슬랙] - 메시지 삭제에 실패하였습니다.", HttpStatus.INTERNAL_SERVER_ERROR);
 
     private final int errorCode;
     private final String message;

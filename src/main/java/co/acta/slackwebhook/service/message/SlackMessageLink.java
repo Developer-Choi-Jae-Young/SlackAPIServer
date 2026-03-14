@@ -13,7 +13,7 @@ public class SlackMessageLink implements SlackMessageAPI {
     public Map<?, ?> makeMessageFrame(AddBoardDto boardDto, List<MultipartFile> files, String channelId) {
         Map<String, Object> actionBlock = new HashMap<>();
 
-        if(boardDto.getParentBoardId() == null && (boardDto.getLink().contains("https://") || boardDto.getLink().contains("http://"))) {
+        if(boardDto.getParentBoardId() == null && boardDto.getLink() != null && (boardDto.getLink().contains("https://") || boardDto.getLink().contains("http://"))) {
             actionBlock.put("type", "actions");
             Map<String, Object> buttonElement = new HashMap<>();
             buttonElement.put("type", "button");

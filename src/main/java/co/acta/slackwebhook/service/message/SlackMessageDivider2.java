@@ -9,18 +9,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 두 번째 구분선 블록 — SlackMessageDivider와 동일한 역할이지만
+ * findMessageBean()이 class 타입으로 찾기 때문에 별도 클래스로 분리
+ */
 @Component
-public class SlackMessageContent implements SlackMessageAPI {
+public class SlackMessageDivider2 implements SlackMessageAPI {
     @Override
     public Map<?, ?> makeMessageFrame(AddBoardDto boardDto, List<MultipartFile> files, String channelId) {
-        Map<String, Object> sectionContentBlock = new HashMap<>();
-
-        sectionContentBlock.put("type", "section");
-        Map<String, String> contentElement = new HashMap<>();
-        contentElement.put("type", "plain_text");
-        contentElement.put("text", boardDto.getContent() != null ? boardDto.getContent() : "");
-        sectionContentBlock.put("text", contentElement);
-
-        return sectionContentBlock;
+        Map<String, Object> divider = new HashMap<>();
+        divider.put("type", "divider");
+        return divider;
     }
 }

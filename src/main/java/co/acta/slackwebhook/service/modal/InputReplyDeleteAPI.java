@@ -9,20 +9,20 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Component
-public class InputReplyAccountPW  extends UtilsModal implements SlackModalAPI {
+public class InputReplyDeleteAPI extends UtilsModal implements SlackModalAPI {
     @Override
     public Map<?, ?> makeModalFrame(DomainInfo domainInfo) {
         Map<String, Object> inputBlock = new HashMap<>();
         inputBlock.put("type", "input");
-        inputBlock.put("block_id", "reply_pw_block");
-        inputBlock.put("label", plainText("답글 작성 계정 PW"));
+        inputBlock.put("block_id", "reply_delete_block");
+        inputBlock.put("label", plainText("답글 삭제 API"));
         Map<String, Object> element = new HashMap<>();
         element.put("type", "plain_text_input");
-        element.put("action_id", "input_reply_pw");
-        element.put("placeholder", plainText("답글 작성 계정 PW를 입력하세요"));
-        // 보안상 PW는 initial_value로 노출하지 않음
+        element.put("action_id", "input_reply_delete");
+        element.put("placeholder", plainText("답글 삭제 API를 입력하세요 (예: https://www.example.com/board/reply/delete)"));
+        if (domainInfo != null && domainInfo.getReplyDeleteApi() != null && !domainInfo.getReplyDeleteApi().isEmpty())
+            element.put("initial_value", domainInfo.getReplyDeleteApi());
         inputBlock.put("element", element);
-
         return inputBlock;
     }
 }

@@ -10,7 +10,7 @@ public enum SlackMessageFrame {
     DIVIDER_1(SlackMessageDivider.class),
     INFO(SlackMessageInfo.class),
     CONTENT_HEADER(SlackMessageContentHeader.class),
-    DIVIDER_2(SlackMessageDivider.class),
+    DIVIDER_2(SlackMessageDivider2.class),
     CONTENT(SlackMessageContent.class),
     FILE(SlackMessageFile.class),
     LINK(SlackMessageLink.class);

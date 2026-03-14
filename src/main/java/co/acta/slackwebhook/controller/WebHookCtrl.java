@@ -51,10 +51,25 @@ public class WebHookCtrl {
         if (event.isUserReplyMessage()) {
             webHookService.sendReply(
                     event.getThreadTs(),
+                    event.getTs(),       // Slack 답글 자체 ts → replyTs
                     event.getChannel(),
                     event.getText(),
                     event.getUser(),
                     event.getFiles()
+            );
+        } else if (event.isUserReplyEdited()) {
+            // 답글 수정 — Slack은 이미 수정됨, BO에만 반영
+            webHookService.updateReply(
+                    event.getChannel(),
+                    event.getMessage().getTs(),
+                    event.getMessage().getText(),
+                    event.getMessage().getUser(),
+                    event.getMessage().getFiles()
+            );
+        } else if (event.isUserReplyDeleted()) {
+            webHookService.deleteReply(
+                    event.getChannel(),
+                    event.getDeletedTs()
             );
         }
 

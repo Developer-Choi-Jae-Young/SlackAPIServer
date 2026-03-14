@@ -17,6 +17,9 @@ public class UtilsCommon {
         if (rawOrigin == null || rawOrigin.isEmpty()) {
             rawOrigin = request.getHeader("Host");
         }
+        if (rawOrigin == null || rawOrigin.isEmpty()) {
+            return "";
+        }
 
         String finalHost = "";
         try {

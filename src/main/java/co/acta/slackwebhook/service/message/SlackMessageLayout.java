@@ -15,7 +15,7 @@ public class SlackMessageLayout {
         body.put("channel", channelId);
         if(parentTs != null && !parentTs.isEmpty()) body.put("thread_ts", parentTs);
         body.put("blocks", blocks);
-        body.put("text", "새 게시글이 등록되었습니다: " + boardDto.getTitle());
+        body.put("text", "새 게시글이 등록되었습니다: " + (boardDto.getTitle() != null ? boardDto.getTitle() : ""));
 
         return body;
     }

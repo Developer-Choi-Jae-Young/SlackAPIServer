@@ -20,7 +20,7 @@ public class InputSubscribeDomain extends UtilsModal implements SlackModalAPI {
         element.put("type", "plain_text_input");
         element.put("action_id", "input_host");
         element.put("placeholder", plainText("도메인 주소를 입력하세요 (예: https://www.example.com)"));
-        if(domainInfo != null && domainInfo != null && domainInfo.getDomain() != null && !domainInfo.getDomain().isEmpty()) element.put("initial_value", domainInfo.getDomain());
+        if(domainInfo != null && domainInfo.getDomain() != null && !domainInfo.getDomain().isEmpty()) element.put("initial_value", domainInfo.getDomain());
         inputBlock.put("element", element);
 
         return inputBlock;

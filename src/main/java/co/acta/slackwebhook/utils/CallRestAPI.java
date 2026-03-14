@@ -1,5 +1,6 @@
 package co.acta.slackwebhook.utils;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import co.acta.slackwebhook.dto.request.AddBoardDto;
 import co.acta.slackwebhook.exception.CustomException;
 import co.acta.slackwebhook.exception.ExceptionInfo;
@@ -19,6 +20,7 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
@@ -37,6 +39,7 @@ public class CallRestAPI {
     private final SlackMessageLayout slackMessageLayout;
     private final SlackModalLayout slackModalLayout;
     private final List<Authenticate> authenticate;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Value("${slack.token}")
     private String slackToken;
@@ -130,7 +133,11 @@ public class CallRestAPI {
         return strategy.login(loginResponse);
     }
 
-    public ResponseEntity<String> reply(BoardDomainInfo info, String text, String user, HttpHeaders httpHeaders, List<SlackEventRequest.SlackFile> files) throws CustomException {
+    /**
+     * BO 시스템에 댓글 등록 후 BO 댓글 PK를 파싱해서 반환.
+     * BO가 PK를 응답에 포함하지 않으면 null 반환.
+     */
+    public String reply(BoardDomainInfo info, String text, String user, HttpHeaders httpHeaders, List<SlackEventRequest.SlackFile> files) throws CustomException {
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
         body.add(info.getParamBoardId(), info.getBoardId());
         body.add(info.getParamContent(), text);
@@ -147,7 +154,23 @@ public class CallRestAPI {
 
         try {
             HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, httpHeaders);
-            return restTemplate.postForEntity(info.getReplyUrl(), requestEntity, String.class);
+
+            // String으로 먼저 받고, paramReplyIdKey 설정 시에만 JSON 파싱 시도
+            ResponseEntity<String> response = restTemplate.postForEntity(info.getReplyUrl(), requestEntity, String.class);
+
+            if (response.getStatusCode().is2xxSuccessful()
+                    && StringUtils.hasText(response.getBody())
+                    && StringUtils.hasText(info.getParamReplyIdKey())) {
+                try {
+                    Map<?, ?> parsed = objectMapper.readValue(response.getBody(), Map.class);
+                    Object replyId = parsed.get(info.getParamReplyIdKey());
+                    return replyId != null ? String.valueOf(replyId) : null;
+                } catch (Exception parseEx) {
+                    log.warn("[reply] BO 응답 JSON 파싱 실패 — boReplyId 없이 진행. body={}", response.getBody());
+                }
+            }
+            return null;
+
         } catch (RestClientException e) {
             log.error("[reply] 전송 실패: {}", e.getMessage());
             throw new CustomException(ExceptionInfo.REPLY_FAIL);
@@ -231,6 +254,46 @@ public class CallRestAPI {
         } catch (Exception e) {
             log.error("[openModal] 모달 오픈 실패: {}", e.getMessage());
             throw new CustomException(ExceptionInfo.MODAL_OPEN_FAIL);
+        }
+    }
+
+    public void deleteBoReply(BoardDomainInfo info, String boReplyId, HttpHeaders httpHeaders) throws CustomException {
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add(info.getParamBoardId(), info.getBoardId());
+        body.add(info.getParamReplyId(), boReplyId);
+
+        try {
+            HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, httpHeaders);
+            restTemplate.postForEntity(info.getReplyDeleteUrl(), requestEntity, String.class);
+        } catch (RestClientException e) {
+            log.error("[deleteBoReply] BO 댓글 삭제 요청 실패: {}", e.getMessage());
+            throw new CustomException(ExceptionInfo.REPLY_FAIL);
+        }
+    }
+
+    public void updateBoReply(BoardDomainInfo info, String boReplyId, String newText, String user,
+                              HttpHeaders httpHeaders, List<SlackEventRequest.SlackFile> files) throws CustomException {
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add(info.getParamBoardId(), info.getBoardId());
+        body.add(info.getParamReplyId(), boReplyId);
+        body.add(info.getParamContent(), newText);
+        body.add(info.getParamRegUserName(), user);
+        body.add(info.getParamRegDttm(), LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+
+        if (files != null) {
+            for (SlackEventRequest.SlackFile fileInfo : files) {
+                String downloadUrl = fileInfo.getUrlPrivate();
+                String fileName = fileInfo.getName();
+                if (downloadUrl != null) body.add("file", makeDownloadFile(downloadUrl, fileName));
+            }
+        }
+
+        try {
+            HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, httpHeaders);
+            restTemplate.postForEntity(info.getReplyUpdateUrl(), requestEntity, String.class);
+        } catch (RestClientException e) {
+            log.error("[updateBoReply] BO 댓글 수정 요청 실패: {}", e.getMessage());
+            throw new CustomException(ExceptionInfo.REPLY_FAIL);
         }
     }
 

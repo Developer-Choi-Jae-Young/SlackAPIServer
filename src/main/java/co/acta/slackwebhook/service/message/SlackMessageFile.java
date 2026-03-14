@@ -26,21 +26,31 @@ public class SlackMessageFile implements SlackMessageAPI {
 
             for (MultipartFile mFile : files) {
                 if (mFile.isEmpty()) continue;
-                uploadedFiles.add(callRestAPI.filesGetUploadURLExternal(mFile));
+                try {
+                    uploadedFiles.add(callRestAPI.filesGetUploadURLExternal(mFile));
+                } catch (Exception e) {
+                    log.error("[SlackMessageFile] 파일 업로드 URL 발급 실패. filename={}, error={}", mFile.getOriginalFilename(), e.getMessage());
+                }
             }
 
             if (!uploadedFiles.isEmpty()) {
-                callRestAPI.filesCompleteUploadExternal(uploadedFiles, channelId).stream().forEach(fInfo -> {
-                    String permalink = (String) fInfo.get("permalink");
-                    String name = (String) fInfo.get("name");
+                try {
+                    callRestAPI.filesCompleteUploadExternal(uploadedFiles, channelId).forEach(fInfo -> {
+                        String permalink = (String) fInfo.get("permalink");
+                        String name = (String) fInfo.get("name");
+                        Map<String, String> field = new HashMap<>();
+                        field.put("type", "mrkdwn");
+                        field.put("text", String.format("📎 *첨부파일:* <%s|%s>", permalink, name));
+                        fields.add(field);
+                    });
+                } catch (Exception e) {
+                    log.error("[SlackMessageFile] 파일 업로드 완료 처리 실패. error={}", e.getMessage());
+                }
 
-                    Map<String, String> field = new HashMap<>();
-                    field.put("type", "mrkdwn");
-                    field.put("text", String.format("📎 *첨부파일:* <%s|%s>", permalink, name));
-                    fields.add(field);
-                });
-                fileLinkBlock.put("type", "section");
-                fileLinkBlock.put("fields", fields);
+                if (!fields.isEmpty()) {
+                    fileLinkBlock.put("type", "section");
+                    fileLinkBlock.put("fields", fields);
+                }
             }
         }
 

@@ -19,7 +19,7 @@ public class InputReplyAccountID extends UtilsModal implements SlackModalAPI {
         Map<String, Object> element = new HashMap<>();
         element.put("type", "plain_text_input");
         element.put("action_id", "input_reply_id");
-        element.put("placeholder", plainText("답글 작성 계정 PW를 입력하세요"));
+        element.put("placeholder", plainText("답글 작성 계정 ID를 입력하세요"));
         if(domainInfo != null && domainInfo.getLoginId() != null && !domainInfo.getLoginId().isEmpty()) element.put("initial_value", domainInfo.getLoginId());
         inputBlock.put("element", element);
 

@@ -17,11 +17,11 @@ public class SlackMessageInfo implements SlackMessageAPI {
         List<Map<String, String>> fields = new ArrayList<>();
         Map<String, String> writerText = new HashMap<>();
         writerText.put("type", "mrkdwn");
-        writerText.put("text", String.format("*작성자: %s*", boardDto.getWriter()));
+        writerText.put("text", String.format("*작성자: %s*", boardDto.getWriter() != null ? boardDto.getWriter() : ""));
         fields.add(writerText);
         Map<String, String> regText = new HashMap<>();
         regText.put("type", "mrkdwn");
-        regText.put("text", String.format("*작성일: %s*", boardDto.getRegDate()));
+        regText.put("text", String.format("*작성일: %s*", boardDto.getRegDate() != null ? boardDto.getRegDate() : ""));
         fields.add(regText);
         sectionBlock.put("fields", fields);
 

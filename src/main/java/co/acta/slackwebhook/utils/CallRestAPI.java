@@ -133,10 +133,6 @@ public class CallRestAPI {
         return strategy.login(loginResponse);
     }
 
-    /**
-     * BO 시스템에 댓글 등록 후 BO 댓글 PK를 파싱해서 반환.
-     * BO가 PK를 응답에 포함하지 않으면 null 반환.
-     */
     public String reply(BoardDomainInfo info, String text, String user, HttpHeaders httpHeaders, List<SlackEventRequest.SlackFile> files) throws CustomException {
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
         body.add(info.getParamBoardId(), info.getBoardId());
@@ -154,8 +150,6 @@ public class CallRestAPI {
 
         try {
             HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(body, httpHeaders);
-
-            // String으로 먼저 받고, paramReplyIdKey 설정 시에만 JSON 파싱 시도
             ResponseEntity<String> response = restTemplate.postForEntity(info.getReplyUrl(), requestEntity, String.class);
 
             if (response.getStatusCode().is2xxSuccessful()

@@ -16,8 +16,8 @@ public class BoardDomainInfo {
     private String paramUserId;
     private String paramUserPw;
     private String paramBoardId;
-    private String paramReplyId;      // BO 수정/삭제 시 댓글 PK 파라미터명
-    private String paramReplyIdKey;   // BO 등록 응답 JSON에서 댓글 PK를 꺼낼 key명
+    private String paramReplyId;
+    private String paramReplyIdKey;
     private String paramContent;
     private String paramRegUserName;
     private String paramRegDttm;

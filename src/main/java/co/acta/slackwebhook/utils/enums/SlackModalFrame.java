@@ -21,8 +21,8 @@ public enum SlackModalFrame {
     MAPPING_BOARD_CONTENT(ParamMappingBoardContent.class),
     MAPPING_BOARD_WRITER(ParamMappingBoardWriter.class),
     MAPPING_BOARD_REG(ParamMappingBoardReg.class),
-    MAPPING_REPLY_ID(ParamMappingReplyID.class),         // BO 수정/삭제 API의 댓글 PK 파라미터명
-    MAPPING_REPLY_ID_KEY(ParamMappingReplyIDKey.class);  // BO 등록 응답에서 댓글 PK 꺼낼 key명
+    MAPPING_REPLY_ID(ParamMappingReplyID.class),
+    MAPPING_REPLY_ID_KEY(ParamMappingReplyIDKey.class);
 
     private final Class<? extends SlackModalAPI> serviceClass;
 

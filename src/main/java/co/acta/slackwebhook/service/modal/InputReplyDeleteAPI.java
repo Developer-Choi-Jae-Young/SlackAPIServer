@@ -15,6 +15,7 @@ public class InputReplyDeleteAPI extends UtilsModal implements SlackModalAPI {
         Map<String, Object> inputBlock = new HashMap<>();
         inputBlock.put("type", "input");
         inputBlock.put("block_id", "reply_delete_block");
+        inputBlock.put("optional", true);
         inputBlock.put("label", plainText("답글 삭제 API"));
         Map<String, Object> element = new HashMap<>();
         element.put("type", "plain_text_input");

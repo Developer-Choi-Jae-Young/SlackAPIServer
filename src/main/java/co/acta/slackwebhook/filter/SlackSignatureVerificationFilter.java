@@ -115,7 +115,6 @@ public class SlackSignatureVerificationFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String uri = request.getRequestURI();
-        // Slack 이벤트/인터랙션만 서명 검증, add-board는 BO 시스템 호출이므로 제외
         return !uri.equals("/slack/event")
                 && !uri.equals("/slack/interactivity")
                 && !uri.equals("/slack/add-domain-channel");

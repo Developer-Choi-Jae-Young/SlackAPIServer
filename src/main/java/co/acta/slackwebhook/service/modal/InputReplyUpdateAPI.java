@@ -15,6 +15,7 @@ public class InputReplyUpdateAPI extends UtilsModal implements SlackModalAPI {
         Map<String, Object> inputBlock = new HashMap<>();
         inputBlock.put("type", "input");
         inputBlock.put("block_id", "reply_update_block");
+        inputBlock.put("optional", true);
         inputBlock.put("label", plainText("답글 수정 API"));
         Map<String, Object> element = new HashMap<>();
         element.put("type", "plain_text_input");

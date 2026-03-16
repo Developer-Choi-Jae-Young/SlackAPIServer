@@ -7,6 +7,5 @@ import java.util.Optional;
 
 public interface BoardRepository extends JpaRepository<BoardEntity, Long> {
     Optional<BoardEntity> findByBoardId(Long boardId);
-
     Optional<BoardEntity> findByTsAndDomainChannel_Channel(String ts, String domainChannelChannel);
 }

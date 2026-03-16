@@ -24,8 +24,8 @@ public class DomainEntity {
     private String paramNameUserId;
     private String paramNameUserPw;
     private String paramNameBoardId;
-    private String paramNameReplyId;   // BO 댓글 PK 파라미터명 (수정/삭제 시 사용)
-    private String paramNameReplyIdKey; // BO 댓글 등록 응답 JSON에서 replyId를 꺼낼 key명
+    private String paramNameReplyId;
+    private String paramNameReplyIdKey;
     private String paramNameContent;
     private String paramNameRegUsrNm;
     private String paramNameRegDttm;

@@ -25,8 +25,8 @@ public class DomainInfo {
     private String paramMappingBoardContent;
     private String paramMappingBoardWriter;
     private String paramMappingBoardRegDttm;
-    private String paramMappingReplyId;      // BO 수정/삭제 API의 댓글 PK 파라미터명
-    private String paramMappingReplyIdKey;   // BO 등록 응답 JSON에서 댓글 PK를 꺼낼 key명
+    private String paramMappingReplyId;
+    private String paramMappingReplyIdKey;
 
     public static DomainInfo of(DomainEntity domainEntity) {
         return domainEntity == null ? null : DomainInfo.builder()

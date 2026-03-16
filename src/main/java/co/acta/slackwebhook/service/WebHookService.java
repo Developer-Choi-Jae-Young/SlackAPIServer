@@ -56,7 +56,6 @@ public class WebHookService {
         List<BoardDomainInfo> boardDomainInfoList = new ArrayList<>();
 
         for (DomainChannelEntity data : domainChannelList) {
-            // boardDto는 공유 객체이므로 채널별로 필요한 값만 로컬로 처리
             boardDto.setLink(data.getDomain().getViewUrl());
 
             String ts;
@@ -77,7 +76,6 @@ public class WebHookService {
                 continue;
             }
 
-            // ts는 채널별로 독립적으로 저장 — boardDto.setTs 대신 addBoard에 직접 전달
             AddBoardDto boardDtoForSave = AddBoardDto.builder()
                     .parentBoardId(boardDto.getParentBoardId())
                     .boardId(boardDto.getBoardId())
@@ -158,10 +156,8 @@ public class WebHookService {
                     info.getLoginUrl(), info.getParamUserId(), info.getParamUserPw(),
                     info.getAccountId(), decryptedPw, LoginType.Session);
 
-            // BO 시스템에 댓글 등록, 응답에서 BO 댓글 PK 파싱 (없으면 null)
             String boReplyId = callRestAPI.reply(info, text, user, httpHeaders, files);
 
-            // 등록 성공 시 Slack reply ts + boReplyId를 DB에 저장
             replyRepository.save(ReplyEntity.builder()
                     .ts(ts).replyTs(replyTs).boReplyId(boReplyId).board(board).build());
             log.info("[sendReply] 답글 DB 저장 완료. ts={}, replyTs={}, boReplyId={}, channel={}", ts, replyTs, boReplyId, channel);
@@ -173,10 +169,6 @@ public class WebHookService {
         }
     }
 
-    /**
-     * Slack에서 답글 수정 이벤트 수신 시 → BO 시스템에 수정 반영
-     * Slack은 이미 수정된 상태이므로 Slack API 재호출 불필요
-     */
     @Async
     @Transactional
     public void updateReply(String channel, String originalTs, String newText, String user, List<SlackEventRequest.SlackFile> files) {
@@ -191,12 +183,8 @@ public class WebHookService {
                     info.getLoginUrl(), info.getParamUserId(), info.getParamUserPw(),
                     info.getAccountId(), decryptedPw, LoginType.Session);
 
-            // BO 댓글 PK 없으면 수정 불가 — BO가 등록 응답에 PK를 포함하지 않은 경우
-            if (reply.getBoReplyId() == null) {
-                throw new CustomException(ExceptionInfo.REPLY_BO_ID_NOT_FOUND);
-            }
+            if (reply.getBoReplyId() == null) throw new CustomException(ExceptionInfo.REPLY_BO_ID_NOT_FOUND);
 
-            // BO 시스템 댓글 수정 (boReplyId가 있으면 포함해서 전송)
             callRestAPI.updateBoReply(info, reply.getBoReplyId(), newText, user, httpHeaders, files);
             log.info("[updateReply] BO 답글 수정 완료. replyTs={}, boReplyId={}, channel={}", originalTs, reply.getBoReplyId(), channel);
 
@@ -207,10 +195,6 @@ public class WebHookService {
         }
     }
 
-    /**
-     * Slack에서 답글 삭제 이벤트 수신 시 → BO 시스템에 삭제 반영 + DB 삭제
-     * Slack은 이미 삭제된 상태이므로 Slack API 재호출 불필요
-     */
     @Async
     @Transactional
     public void deleteReply(String channel, String deletedTs) {
@@ -225,15 +209,12 @@ public class WebHookService {
                     info.getLoginUrl(), info.getParamUserId(), info.getParamUserPw(),
                     info.getAccountId(), decryptedPw, LoginType.Session);
 
-            // BO 댓글 PK 없으면 삭제 불가 — BO가 등록 응답에 PK를 포함하지 않은 경우
             if (reply.getBoReplyId() == null) {
                 throw new CustomException(ExceptionInfo.REPLY_BO_ID_NOT_FOUND);
             }
 
-            // BO 시스템에 삭제 반영 (boReplyId가 있으면 포함해서 전송)
             callRestAPI.deleteBoReply(info, reply.getBoReplyId(), httpHeaders);
 
-            // DB에서도 답글 삭제
             replyRepository.delete(reply);
             log.info("[deleteReply] 답글 삭제 완료. replyTs={}, boReplyId={}, channel={}", deletedTs, reply.getBoReplyId(), channel);
 
@@ -244,9 +225,6 @@ public class WebHookService {
         }
     }
 
-    /**
-     * BO에서 답글 수정 시 → Slack 스레드 메시지도 수정
-     */
     @Async
     @Transactional(readOnly = true)
     public void boUpdateReplyToSlack(String boReplyId, String newContent) {
@@ -265,9 +243,6 @@ public class WebHookService {
         }
     }
 
-    /**
-     * BO에서 답글 삭제 시 → Slack 스레드 메시지도 삭제
-     */
     @Async
     @Transactional
     public void boDeleteReplyToSlack(String boReplyId) {

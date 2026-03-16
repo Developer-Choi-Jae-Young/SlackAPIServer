@@ -1,10 +1,8 @@
 package co.acta.slackwebhook.controller;
 
-import co.acta.slackwebhook.dto.request.AddBoardDto;
 import co.acta.slackwebhook.dto.request.AddWebHookDTO;
 import co.acta.slackwebhook.exception.CustomException;
 import co.acta.slackwebhook.service.WebHookService;
-import co.acta.slackwebhook.utils.UtilsCommon;
 import co.acta.slackwebhook.vo.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -12,10 +10,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
-
-import javax.servlet.http.HttpServletRequest;
-import java.util.List;
 import java.util.Map;
 
 @Slf4j
@@ -33,13 +27,6 @@ public class WebHookCtrl {
         return ResponseEntity.ok().build();
     }
 
-    @PostMapping(value = "/add-board")
-    public ResponseEntity<?> addBoard(HttpServletRequest request, @RequestPart("dto") AddBoardDto dto, @RequestPart(value = "files", required = false)List<MultipartFile> files) {
-        String finalHost = UtilsCommon.getHost(request);
-        List<BoardDomainInfo> boardDomainInfoList = webHookService.sendAPI(dto, finalHost, files);
-        return ResponseEntity.ok().body(boardDomainInfoList);
-    }
-
     @PostMapping("/event")
     public ResponseEntity<?> slackCheckEvent(@RequestBody SlackEventRequest request, @RequestHeader(value = "X-Slack-Retry-Num", required = false) Integer retryNum) {
         if (retryNum != null && retryNum > 0) return ResponseEntity.ok().build();
@@ -51,14 +38,13 @@ public class WebHookCtrl {
         if (event.isUserReplyMessage()) {
             webHookService.sendReply(
                     event.getThreadTs(),
-                    event.getTs(),       // Slack 답글 자체 ts → replyTs
+                    event.getTs(),
                     event.getChannel(),
                     event.getText(),
                     event.getUser(),
                     event.getFiles()
             );
         } else if (event.isUserReplyEdited()) {
-            // 답글 수정 — Slack은 이미 수정됨, BO에만 반영
             webHookService.updateReply(
                     event.getChannel(),
                     event.getMessage().getTs(),

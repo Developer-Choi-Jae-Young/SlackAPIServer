@@ -52,7 +52,7 @@ public class WebHookService {
                 ? boardRepository.findByBoardId((long) boardDto.getParentBoardId()).map(BoardEntity::getTs).orElse(null)
                 : null;
 
-        List<DomainChannelEntity> domainChannelList = domainChannelRepository.findByDomain_Domain(domain);
+        List<DomainChannelEntity> domainChannelList = domainChannelRepository.findByDomain_SubDomainOrDomainDomain(domain, domain);
         List<BoardDomainInfo> boardDomainInfoList = new ArrayList<>();
 
         for (DomainChannelEntity data : domainChannelList) {
@@ -94,14 +94,17 @@ public class WebHookService {
 
     @Transactional
     public DomainInfo addDomainChannel(DomainChannelRequest request, String channel) throws CustomException {
-        String encPassword = textEncryptor.encrypt(request.getReplyPw());
-        DomainChannelEntity domainChannelEntity = domainChannelRepository.findByChannel(channel).orElse(null);
+        String encPassword = null;
+        if(request.getReplyPw() != null && !request.getReplyPw().isEmpty()) {
+            encPassword = textEncryptor.encrypt(request.getReplyPw());
+        }
 
+        DomainChannelEntity domainChannelEntity = domainChannelRepository.findByChannel(channel).orElse(null);
         try {
             DomainEntity destDomain;
             if (domainChannelEntity == null) {
                 DomainEntity domainEntity = DomainEntity.builder()
-                        .domain(request.getHost()).viewUrl(request.getView()).loginUrl(request.getLogin())
+                        .domain(request.getHost()).subDomain(request.getSubHost()).viewUrl(request.getView()).loginUrl(request.getLogin())
                         .replyUrl(request.getReply()).replyUpdateUrl(request.getReplyUpdate()).replyDeleteUrl(request.getReplyDelete())
                         .accountId(request.getReplyId()).accountPw(encPassword)
                         .paramNameUserId(request.getParamUserId()).paramNameUserPw(request.getParamUserPw())
@@ -266,7 +269,7 @@ public class WebHookService {
     public ResponseEntity<Map<String, Object>> openModal(String triggerId, String channelId) throws CustomException {
         DomainChannelEntity domainChannelEntity = domainChannelRepository.findByChannel(channelId).orElse(null);
         DomainEntity domainEntity = domainChannelEntity == null ? null : domainChannelEntity.getDomain();
-        if (domainEntity != null) domainEntity.maskDecryptedPassword(textEncryptor.decrypt(domainEntity.getAccountPw()));
+        if (domainEntity != null && domainEntity.getAccountPw() != null) domainEntity.maskDecryptedPassword(textEncryptor.decrypt(domainEntity.getAccountPw()));
         DomainInfo domainInfo = DomainInfo.of(domainEntity);
 
         return callRestAPI.openModal(triggerId, channelId, () -> {

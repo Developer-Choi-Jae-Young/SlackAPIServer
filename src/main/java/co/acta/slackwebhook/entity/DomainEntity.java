@@ -14,6 +14,7 @@ public class DomainEntity {
     @Id @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
     private String domain;
+    private String subDomain;
     private String replyUrl;
     private String replyUpdateUrl;
     private String replyDeleteUrl;
@@ -32,6 +33,7 @@ public class DomainEntity {
 
     public void update(DomainChannelRequest request, String encryptedPassword) {
         this.domain          = request.getHost();
+        this.subDomain       = request.getSubHost();
         this.viewUrl         = request.getView();
         this.loginUrl        = request.getLogin();
         this.replyUrl        = request.getReply();

@@ -7,6 +7,7 @@ import lombok.Data;
 @Builder
 public class DomainChannelRequest {
     private String host;
+    private String subHost;
     private String view;
     private String login;
     private String reply;
@@ -26,6 +27,7 @@ public class DomainChannelRequest {
     public static DomainChannelRequest of(SlackPayload payload) {
         return DomainChannelRequest.builder()
                 .host(payload.getActionValue("host_block", "input_host"))
+                .subHost(payload.getActionValue("sub_host_block", "input_sub_host"))
                 .view(payload.getActionValue("view_block", "input_view"))
                 .login(payload.getActionValue("login_block", "input_login"))
                 .reply(payload.getActionValue("reply_block", "input_reply"))

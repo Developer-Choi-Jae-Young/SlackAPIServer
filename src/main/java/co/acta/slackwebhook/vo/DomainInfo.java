@@ -12,6 +12,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class DomainInfo {
     private String domain;
+    private String subDomain;
     private String viewApi;
     private String replyApi;
     private String replyUpdateApi;
@@ -31,6 +32,7 @@ public class DomainInfo {
     public static DomainInfo of(DomainEntity domainEntity) {
         return domainEntity == null ? null : DomainInfo.builder()
                 .domain(domainEntity.getDomain())
+                .subDomain(domainEntity.getSubDomain())
                 .viewApi(domainEntity.getViewUrl())
                 .replyApi(domainEntity.getReplyUrl())
                 .replyUpdateApi(domainEntity.getReplyUpdateUrl())
